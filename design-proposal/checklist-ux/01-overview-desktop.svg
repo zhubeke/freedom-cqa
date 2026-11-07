@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1440" viewBox="0 0 1440 1440">
+  <defs><filter id="s"><feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#20242c" flood-opacity=".08"/></filter></defs>
+  <rect width="1440" height="1440" fill="#f4f5f6"/>
+  <rect width="1440" height="72" fill="#fff"/><line x1="0" y1="72" x2="1440" y2="72" stroke="#e6e8eb"/>
+  <rect x="110" y="16" width="40" height="40" rx="12" fill="#f14646"/><text x="130" y="42" font-family="Arial" font-size="17" font-weight="800" text-anchor="middle" fill="#fff">C</text>
+  <text x="162" y="35" font-family="Arial" font-size="20" font-weight="800" fill="#20242c">CQA</text><text x="162" y="51" font-family="Arial" font-size="10" fill="#747b86">CONVERSATION QUALITY</text>
+  <text x="1015" y="43" font-family="Arial" font-size="14" font-weight="700" fill="#747b86">Conversations</text><text x="1148" y="43" font-family="Arial" font-size="14" font-weight="800" fill="#f14646">Checklists</text><rect x="1138" y="69" width="88" height="3" rx="2" fill="#f14646"/>
+  <text x="110" y="139" font-family="Arial" font-size="13" font-weight="800" fill="#f14646">QUALITY CHECKLISTS</text>
+  <text x="110" y="185" font-family="Arial" font-size="36" font-weight="850" fill="#20242c">Checklists</text><text x="110" y="215" font-family="Arial" font-size="15" fill="#747b86">Review the checklist used to evaluate customer conversations.</text>
+  <rect x="110" y="262" width="1220" height="430" rx="24" fill="#fff" filter="url(#s)"/>
+  <rect x="142" y="294" width="54" height="54" rx="16" fill="#fff0f0"/><path d="M157 311h24v27h-24zM163 306h12v8h-12z" fill="none" stroke="#f14646" stroke-width="2.5" stroke-linejoin="round"/><path d="M162 321h14M162 329h11" stroke="#f14646" stroke-width="2"/>
+  <rect x="1113" y="298" width="183" height="34" rx="17" fill="#eaf8ef"/><circle cx="1131" cy="315" r="4" fill="#24a35a"/><text x="1143" y="320" font-family="Arial" font-size="12" font-weight="800" fill="#23804a">ACTIVE · VERSION 1</text>
+  <text x="142" y="391" font-family="Arial" font-size="28" font-weight="850" fill="#20242c">Freedom Broker — Quality Checklist</text>
+  <text x="142" y="422" font-family="Arial" font-size="15" fill="#747b86">Original eight-criterion quality checklist for Freedom Broker customer conversations.</text>
+  <rect x="142" y="468" width="1120" height="102" rx="18" fill="#f7f8f9"/>
+  <text x="172" y="500" font-family="Arial" font-size="11" font-weight="800" fill="#8a9099">CRITERIA</text><text x="172" y="540" font-family="Arial" font-size="27" font-weight="850" fill="#20242c">8</text>
+  <line x1="385" y1="490" x2="385" y2="550" stroke="#e1e4e8"/>
+  <text x="420" y="500" font-family="Arial" font-size="11" font-weight="800" fill="#8a9099">TOTAL WEIGHT</text><text x="420" y="540" font-family="Arial" font-size="27" font-weight="850" fill="#20242c">100 <tspan font-size="15" fill="#747b86">points</tspan></text>
+  <line x1="690" y1="490" x2="690" y2="550" stroke="#e1e4e8"/>
+  <text x="725" y="500" font-family="Arial" font-size="11" font-weight="800" fill="#8a9099">ANSWER TYPES</text><text x="725" y="540" font-family="Arial" font-size="16" font-weight="750" fill="#20242c">Yes / No · Numeric · Flag</text>
+  <line x1="1018" y1="490" x2="1018" y2="550" stroke="#e1e4e8"/>
+  <text x="1052" y="500" font-family="Arial" font-size="11" font-weight="800" fill="#8a9099">LAST UPDATED</text><text x="1052" y="540" font-family="Arial" font-size="16" font-weight="750" fill="#20242c">From checklist.updated_at</text>
+  <rect x="142" y="606" width="185" height="52" rx="13" fill="#f14646"/><text x="235" y="638" text-anchor="middle" font-family="Arial" font-size="14" font-weight="800" fill="#fff">View checklist  →</text>
+  <rect x="340" y="606" width="160" height="52" rx="13" fill="#fff" stroke="#dfe2e6"/><text x="420" y="638" text-anchor="middle" font-family="Arial" font-size="14" font-weight="800" fill="#20242c">Edit checklist</text>
+  <text x="548" y="638" font-family="Arial" font-size="14" font-weight="800" fill="#747b86">Version history</text>
+  <rect x="110" y="738" width="1220" height="84" rx="18" fill="#fff" stroke="#e6e8eb"/>
+  <text x="142" y="774" font-family="Arial" font-size="15" font-weight="800" fill="#20242c">Empty-state behavior</text><text x="142" y="800" font-family="Arial" font-size="13" fill="#747b86">If the default checklist is missing, replace the card with one clear “Initialize Default Checklist” action backed by the idempotent seed flow.</text>
+  <rect x="110" y="866" width="1220" height="1" fill="#dfe2e6"/><text x="110" y="895" font-family="Arial" font-size="12" fill="#8a9099">SCREEN A · DESKTOP · Design proposal only</text>
+</svg>

@@ -1,0 +1,2 @@
+<script setup lang="ts">import { Plus } from "lucide-vue-next"; defineProps<{ label?: string }>(); defineEmits<{ click: [] }>();</script>
+<template><button type="button" class="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary-soft/50 px-4 text-sm font-bold text-primary transition hover:bg-primary-soft" @click="$emit('click')"><Plus :size="18" />{{ label ?? 'Add criterion' }}</button></template>

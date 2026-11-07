@@ -15,9 +15,21 @@ export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> 
   });
 
   if (!response.ok) {
-    throw new ApiError(response.status, `API request failed with status ${response.status}`);
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    throw new ApiError(response.status, payload.error ?? `API request failed with status ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const payload = await response.json().catch(() => ({})) as T & { error?: string };
+  if (!response.ok) throw new ApiError(response.status, payload.error ?? `API request failed with status ${response.status}`);
+  return payload;
 }
 
 export async function apiUpload<T>(path: string, file: File): Promise<T> {

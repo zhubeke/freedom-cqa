@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Menu, MessagesSquare, X } from "lucide-vue-next";
+import { ClipboardList, Menu, MessagesSquare, X } from "lucide-vue-next";
 import { ref } from "vue";
 import { visualAssets } from "../../assets";
 
@@ -26,6 +26,14 @@ const mobileMenuOpen = ref(false);
           <MessagesSquare :size="18" :stroke-width="2" aria-hidden="true" />
           Conversations
         </RouterLink>
+        <RouterLink
+          to="/checklists"
+          class="relative inline-flex items-center gap-2 px-4 text-sm font-semibold text-muted transition-colors hover:text-ink"
+          active-class="!text-primary after:absolute after:inset-x-4 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-primary"
+        >
+          <ClipboardList :size="18" :stroke-width="2" aria-hidden="true" />
+          Checklists
+        </RouterLink>
       </nav>
 
       <button
@@ -50,6 +58,15 @@ const mobileMenuOpen = ref(false);
       >
         <MessagesSquare :size="19" aria-hidden="true" />
         Conversations
+      </RouterLink>
+      <RouterLink
+        to="/checklists"
+        class="flex min-h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold text-muted"
+        active-class="!bg-primary-soft !text-primary"
+        @click="mobileMenuOpen = false"
+      >
+        <ClipboardList :size="19" aria-hidden="true" />
+        Checklists
       </RouterLink>
     </nav>
   </header>

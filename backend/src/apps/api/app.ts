@@ -7,6 +7,9 @@ import { registerSystemRoutes } from "../../modules/system/routes.js";
 import { registerDatasetImportRoutes } from "../../modules/dataset-import/adapters/http/routes.js";
 import { registerImportStatusRoutes } from "../../modules/import-status/adapters/http/routes.js";
 import { registerConversationQueryRoutes } from "../../modules/conversation-query/adapters/http/routes.js";
+import { registerChecklistManagementRoutes } from "../../modules/checklist-management/adapters/http/routes.js";
+import { MongoChecklistRepository } from "../../modules/checklist-management/adapters/persistence/checklist-repository.js";
+import { seedFreedomChecklist } from "../../modules/checklist-management/seed/seed-freedom-checklist.js";
 
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
@@ -32,6 +35,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await registerDatasetImportRoutes(app, connections.mongodb.db, producer);
   await registerImportStatusRoutes(app, connections.mongodb.db);
   await registerConversationQueryRoutes(app, connections.mongodb.db);
+  const checklistRepository = new MongoChecklistRepository(connections.mongodb.db);
+  await seedFreedomChecklist(checklistRepository);
+  await registerChecklistManagementRoutes(app, connections.mongodb.db);
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([

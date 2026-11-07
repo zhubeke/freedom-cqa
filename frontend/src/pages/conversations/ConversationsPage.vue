@@ -127,6 +127,9 @@ function batchStarted(batch: EvaluationBatch) {
   activeBatchId.value = batch.batch_id;
   window.localStorage.setItem("cqa-active-batch-id", batch.batch_id);
 }
+function clearFilters() {
+  setFilters(["", "all", "all", "all"]);
+}
 </script>
 
 <template>
@@ -170,6 +173,8 @@ function batchStarted(batch: EvaluationBatch) {
         :loading="conversationsQuery.isLoading.value && !conversationsQuery.isError.value"
         :error="conversationsQuery.error.value?.message"
         :error-title="conversationsErrorTitle"
+        @clear-filters="clearFilters"
+        @import="dialogOpen = true"
         @retry="conversationsQuery.refetch()"
       />
       <ConversationPagination

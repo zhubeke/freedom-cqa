@@ -20,7 +20,7 @@ withDefaults(
     errorTitle: "Couldn’t load conversations"
   }
 );
-defineEmits<{ retry: [] }>();
+defineEmits<{ retry: []; import: []; clearFilters: [] }>();
 
 const route = useRoute();
 </script>
@@ -47,7 +47,12 @@ const route = useRoute();
       <button type="button" class="button-primary mt-5" @click="$emit('retry')"><RotateCw :size="16" /> Retry</button>
     </div>
 
-    <ConversationEmptyState v-else-if="conversations.length === 0" :filtered="hasActiveFilters" />
+    <ConversationEmptyState
+      v-else-if="conversations.length === 0"
+      :filtered="hasActiveFilters"
+      @import="$emit('import')"
+      @clear-filters="$emit('clearFilters')"
+    />
 
     <ul v-else class="divide-y divide-line px-2 py-2 sm:px-3" aria-label="Conversations">
       <li v-for="(conversation, index) in conversations" :key="`${conversation.dataset_group_id}:${conversation.conversation_id}`">

@@ -4,8 +4,8 @@ torch==2.8.0+cpu
 torchaudio==2.8.0+cpu
 torchcodec==0.7.0
 pyannote.audio==4.0.7
-numpy==2.0.2
-scipy==1.14.1
+numpy==2.2.2
+scipy==1.15.1
 librosa==0.10.2.post1
 soundfile==0.13.1
 confluent-kafka==2.6.1

@@ -7,6 +7,7 @@ interface QueryOptions {
   language?: string;
   channel?: string;
   datasetGroupId?: string;
+  action?: string;
 }
 
 function escapeRegex(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
@@ -22,6 +23,15 @@ export class ConversationQueryRepository {
     if (options.search) {
       filter.conversation_id = { $regex: escapeRegex(options.search), $options: "i" };
     }
+    if (options.action) {
+      const latest = await this.db.collection("classification_results").aggregate([
+        { $match: { status: { $in: ["completed", "fallback"] } } }, { $sort: { created_at: -1 } },
+        { $group: { _id: { dataset_group_id: "$dataset_group_id", conversation_id: "$conversation_id" }, action: { $first: "$final_action" } } },
+        { $match: { action: options.action } }
+      ]).toArray();
+      filter.$or = latest.map((item) => ({ dataset_group_id: item._id.dataset_group_id, conversation_id: item._id.conversation_id }));
+      if (!latest.length) filter.conversation_id = "__no_matching_conversation__";
+    }
     const collection = this.db.collection("conversations");
     const [items, total] = await Promise.all([
       collection.find(filter, {
@@ -29,8 +39,16 @@ export class ConversationQueryRepository {
       }).sort({ conversation_id: 1 }).skip((options.page - 1) * options.pageSize).limit(options.pageSize).toArray(),
       collection.countDocuments(filter)
     ]);
+    const identities = items.map((item) => ({ dataset_group_id: item.dataset_group_id, conversation_id: item.conversation_id }));
+    const [actions, scores] = identities.length ? await Promise.all([
+      this.db.collection("classification_results").aggregate([{ $match: { $or: identities, status: { $in: ["completed", "fallback", "queued", "processing"] } } }, { $sort: { created_at: -1 } }, { $group: { _id: { dataset_group_id: "$dataset_group_id", conversation_id: "$conversation_id" }, item: { $first: "$$ROOT" } } }]).toArray(),
+      this.db.collection("evaluation_runs").aggregate([{ $match: { $or: identities, status: "completed" } }, { $sort: { completed_at: -1 } }, { $group: { _id: { dataset_group_id: "$dataset_group_id", conversation_id: "$conversation_id" }, item: { $first: "$$ROOT" } } }]).toArray()
+    ]) : [[], []];
+    const key = (group: unknown, conversation: unknown) => `${String(group)}:${String(conversation)}`;
+    const actionMap = new Map(actions.map((entry: any) => [key(entry._id.dataset_group_id, entry._id.conversation_id), entry.item]));
+    const scoreMap = new Map(scores.map((entry: any) => [key(entry._id.dataset_group_id, entry._id.conversation_id), entry.item.final_score]));
     return {
-      items,
+      items: items.map((item) => { const action: any = actionMap.get(key(item.dataset_group_id, item.conversation_id)); return { ...item, quality_score: scoreMap.get(key(item.dataset_group_id, item.conversation_id)) ?? null, recommended_action: action?.final_action ?? null, classification_source: action?.classification_source ?? null, classification_status: action?.status ?? "pending" }; }),
       pagination: {
         page: options.page,
         pageSize: options.pageSize,

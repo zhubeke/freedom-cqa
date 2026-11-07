@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { AlertTriangle, CheckCircle2, ExternalLink, LoaderCircle, RotateCw, ShieldAlert, Sparkles, X } from "lucide-vue-next";
 import { listChecklists, listChecklistVersions } from "../../api/checklists";
-import { evaluationKeys, getEvaluationHistory, startEvaluation } from "../../api/evaluations";
+import { evaluationKeys, getEvaluationHistory, retryEvaluation, startEvaluation } from "../../api/evaluations";
 
 const props = defineProps<{ conversationId: string }>();
 const emit = defineEmits<{ evidence: [messageId: string] }>();
@@ -31,11 +31,11 @@ watch(() => versionsQuery.data.value, (versions) => {
 const historyQuery = useQuery({
   queryKey: computed(() => evaluationKeys.history(props.conversationId)),
   queryFn: ({ signal }) => getEvaluationHistory(props.conversationId, signal),
-  refetchInterval: (query) => query.state.data?.some((run) => run.status === "queued" || run.status === "processing") ? 2500 : false,
+  refetchInterval: (query) => query.state.data?.some((run) => ["queued", "processing", "waiting"].includes(run.status)) ? 2500 : false,
   retry: 1
 });
 const currentRun = computed(() => historyQuery.data.value?.find((run) => run.run_id === selectedRunId.value) ?? historyQuery.data.value?.[0] ?? null);
-const isProcessing = computed(() => currentRun.value?.status === "queued" || currentRun.value?.status === "processing");
+const isProcessing = computed(() => currentRun.value ? ["queued", "processing", "waiting"].includes(currentRun.value.status) : false);
 const startMutation = useMutation({
   mutationFn: () => startEvaluation(props.conversationId, selectedVersionId.value),
   onSuccess: async (result) => {
@@ -44,6 +44,10 @@ const startMutation = useMutation({
     await queryClient.invalidateQueries({ queryKey: evaluationKeys.history(props.conversationId) });
   }
 });
+const retryMutation = useMutation({
+  mutationFn: () => retryEvaluation(currentRun.value!.run_id),
+  onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: evaluationKeys.history(props.conversationId) }); }
+});
 const progress = computed(() => currentRun.value?.total_criteria ? Math.round(100 * currentRun.value.completed_criteria / currentRun.value.total_criteria) : 0);
 const failureLabels: Record<string, string> = {
   configuration: "Configuration error",
@@ -51,13 +55,14 @@ const failureLabels: Record<string, string> = {
   authorization: "Permission error",
   not_found: "Account, model, or endpoint not found",
   rate_limited: "Rate limited",
+  quota_exhausted: "Daily AI quota exhausted",
   provider_unavailable: "Cloudflare unavailable",
   timeout: "Inference timeout",
   network: "Network error",
   malformed_response: "Invalid model response"
 };
 const failureLabel = computed(() => failureLabels[currentRun.value?.error_category ?? ""] ?? "Evaluation error");
-const statusLabel = computed(() => currentRun.value ? ({ queued: "Queued", processing: `Processing: ${currentRun.value.completed_criteria}/${currentRun.value.total_criteria} criteria`, completed: "Completed", failed: "Failed" }[currentRun.value.status]) : "");
+const statusLabel = computed(() => currentRun.value ? ({ queued: "Queued", processing: `Processing: ${currentRun.value.completed_criteria}/${currentRun.value.total_criteria} criteria`, waiting: "Waiting for AI capacity", completed: "Completed", failed: "Retry available" }[currentRun.value.status]) : "");
 function answer(value: boolean | number | null, isNa: boolean) { return isNa ? "N/A" : value === null ? "Pending" : typeof value === "boolean" ? (value ? "Yes" : "No") : String(value); }
 </script>
 
@@ -82,14 +87,15 @@ function answer(value: boolean | number | null, isNa: boolean) { return isNa ? "
         <div class="flex items-center justify-between gap-4 text-sm font-semibold"><span class="inline-flex items-center gap-2"><LoaderCircle class="animate-spin text-primary" :size="18" /> Processing criteria</span><span>{{ currentRun.completed_criteria }}/{{ currentRun.total_criteria }}</span></div>
         <div class="mt-3 h-2 overflow-hidden rounded-full bg-white"><div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" /></div>
       </div>
-      <div v-else-if="currentRun.status === 'failed'" class="flex gap-3 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><AlertTriangle :size="20" class="shrink-0" /><div><strong>{{ failureLabel }}</strong><p class="mt-1">The evaluation failed before a complete score could be calculated. No score has been assigned.</p></div></div>
+      <div v-else-if="currentRun.status === 'waiting'" class="flex gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><LoaderCircle class="animate-spin shrink-0" :size="20" /><div><strong>Waiting for available AI capacity</strong><p class="mt-1">AI capacity temporarily unavailable. Your completed results are saved.</p></div></div>
+      <div v-else-if="currentRun.status === 'failed'" class="flex items-start justify-between gap-3 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><div class="flex gap-3"><AlertTriangle :size="20" class="shrink-0" /><div><strong>Retry available</strong><p class="mt-1">{{ failureLabel }}. No score has been assigned.</p></div></div><button type="button" class="button-secondary shrink-0" :disabled="retryMutation.isPending.value" @click="retryMutation.mutate()"><RotateCw :size="16" /> Retry failed criteria</button></div>
       <div v-else-if="currentRun.status === 'completed'" class="grid gap-4 sm:grid-cols-2">
         <div class="rounded-2xl bg-surface p-5"><p class="text-xs font-bold uppercase tracking-wide text-muted">Final quality score</p><p class="mt-2 text-4xl font-black text-ink">{{ currentRun.final_score === null ? "N/A" : `${currentRun.final_score}%` }}</p></div>
         <div class="rounded-2xl p-5" :class="currentRun.critical_flag ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'"><p class="text-xs font-bold uppercase tracking-wide">Critical violation flag</p><p class="mt-2 flex items-center gap-2 text-lg font-bold"><ShieldAlert v-if="currentRun.critical_flag" :size="22" /><CheckCircle2 v-else :size="22" />{{ currentRun.critical_flag ? "Detected" : "Not detected" }}</p></div>
       </div>
       <div v-if="currentRun.criteria.length" class="mt-5 divide-y divide-line rounded-2xl border border-line">
         <article v-for="criterion in currentRun.criteria" :key="criterion.criterion_id" class="p-4 sm:p-5">
-          <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold text-ink">{{ criterion.criterion_name }}</h3><p class="mt-1 text-xs text-muted">Weight {{ criterion.weight }} · Weighted score {{ criterion.weighted_contribution ?? (criterion.is_na ? 'N/A' : '—') }}</p></div><span class="rounded-lg px-3 py-1 text-sm font-black" :class="criterion.raw_value === false && !criterion.is_na ? 'bg-red-50 text-red-700' : 'bg-surface text-ink'">{{ criterion.processing_state === 'error' ? 'Failed' : answer(criterion.raw_value, criterion.is_na) }}</span></div>
+          <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold text-ink">{{ criterion.criterion_name }}</h3><p class="mt-1 text-xs text-muted">Weight {{ criterion.weight }} · Weighted score {{ criterion.weighted_contribution ?? (criterion.is_na ? 'N/A' : '—') }}</p></div><span class="rounded-lg px-3 py-1 text-sm font-black" :class="criterion.raw_value === false && !criterion.is_na ? 'bg-red-50 text-red-700' : 'bg-surface text-ink'">{{ criterion.processing_state === 'error' ? 'Failed' : criterion.processing_state === 'retry_scheduled' ? 'Waiting' : answer(criterion.raw_value, criterion.is_na) }}</span></div>
           <p v-if="criterion.explanation" class="mt-3 text-sm leading-6 text-muted">{{ criterion.explanation }}</p>
           <p v-else-if="criterion.processing_state === 'error'" class="mt-3 text-sm text-red-700">{{ failureLabels[criterion.error_category ?? ''] ?? 'Criterion evaluation failed' }}</p>
           <div v-if="criterion.evidence_message_ids.length" class="mt-3 flex flex-wrap gap-2">

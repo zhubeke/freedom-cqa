@@ -6,6 +6,7 @@ import { ApiError } from "../../api/client";
 import { extractMetadata, getAudioMetrics, getMetadata, metadataKeys } from "../../api/metadata";
 import type { ConversationDetail } from "../../shared/types/conversation";
 import type { Signal } from "../../shared/types/metadata";
+import { getSentiment, sentimentKeys } from "../../api/sentiment";
 
 const props = defineProps<{ conversation: ConversationDetail }>();
 const queryClient = useQueryClient();
@@ -21,6 +22,11 @@ const audioQuery = useQuery({
   enabled: computed(() => props.conversation.has_audio && Boolean(metadataQuery.data.value)),
   retry: false,
   refetchInterval: (query) => query.state.data?.status === "completed" || query.state.data?.status === "failed" ? false : 3000
+});
+const sentimentQuery = useQuery({
+  queryKey: computed(() => sentimentKeys.detail(props.conversation.conversation_id, props.conversation.dataset_group_id)),
+  queryFn: ({ signal }) => getSentiment(props.conversation.conversation_id, props.conversation.dataset_group_id, signal),
+  retry: false
 });
 const extractMutation = useMutation({
   mutationFn: () => extractMetadata(props.conversation.conversation_id, props.conversation.dataset_group_id),
@@ -60,12 +66,14 @@ function percent(value?: number): string { return value === undefined ? "Unavail
         <div class="rounded-2xl bg-surface p-4"><p class="text-xs font-bold uppercase text-muted">Response time</p><p class="mt-2 text-xl font-black">{{ seconds(metadata.deterministic.response_timing.average_operator_response_seconds.value) }}</p><p class="mt-1 text-xs text-muted">First {{ seconds(metadata.deterministic.response_timing.first_operator_response_seconds.value) }}</p></div>
       </div>
       <div v-if="metadata.semantic" class="grid gap-4 lg:grid-cols-3">
-        <div class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Intent</p><p class="mt-2 font-bold">{{ metadata.semantic.customer_intent.primary_intent.label }}</p><p v-if="metadata.semantic.customer_intent.secondary_intents.length" class="mt-2 text-sm text-muted">Also: {{ metadata.semantic.customer_intent.secondary_intents.map(item => item.label).join(', ') }}</p></div>
-        <div class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Sentiment</p><p class="mt-2 font-bold capitalize">{{ metadata.semantic.customer_sentiment.overall }}</p><p class="mt-2 text-sm text-muted">Score {{ metadata.semantic.customer_sentiment.score.toFixed(2) }}</p></div>
-        <div class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Resolution</p><p class="mt-2 font-bold">{{ metadata.semantic.resolution_and_follow_up.status.replaceAll('_', ' ') }}</p><p v-if="metadata.semantic.resolution_and_follow_up.future_action_committed.value" class="mt-2 text-sm text-muted">Follow-up commitment detected</p></div>
+        <div v-if="metadata.semantic.customer_intent" class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Intent</p><p class="mt-2 font-bold">{{ metadata.semantic.customer_intent.primary_intent.label }}</p><p v-if="metadata.semantic.customer_intent.secondary_intents.length" class="mt-2 text-sm text-muted">Also: {{ metadata.semantic.customer_intent.secondary_intents.map(item => item.label).join(', ') }}</p></div>
+        <div v-if="metadata.semantic.customer_sentiment?.overall" class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Sentiment</p><p class="mt-2 font-bold capitalize">{{ metadata.semantic.customer_sentiment.overall }}</p><p class="mt-2 text-sm text-muted">Score {{ metadata.semantic.customer_sentiment.score?.toFixed(2) ?? 'Unavailable' }}</p></div>
+        <div v-if="metadata.semantic.resolution_and_follow_up" class="rounded-2xl border border-line p-4"><p class="text-xs font-bold uppercase text-muted">Resolution</p><p class="mt-2 font-bold">{{ metadata.semantic.resolution_and_follow_up.status.replaceAll('_', ' ') }}</p><p v-if="metadata.semantic.resolution_and_follow_up.future_action_committed.value" class="mt-2 text-sm text-muted">Follow-up commitment detected</p></div>
       </div>
       <div v-if="complianceSignals.length" class="rounded-2xl bg-amber-50 p-4 text-amber-900"><p class="flex items-center gap-2 font-bold"><AlertTriangle :size="18" /> Potential compliance signals</p><ul class="mt-2 list-disc pl-5 text-sm"><li v-for="[label, signal] in complianceSignals" :key="label">{{ label }} ({{ percent(signal.confidence) }} confidence)</li></ul><p class="mt-2 text-xs">Automated signals require human review.</p></div>
       <div v-if="metadata.semantic_status === 'failed'" class="rounded-2xl bg-red-50 p-4 text-sm text-red-800"><strong>Semantic extraction failed.</strong> Deterministic metadata remains available.<p v-if="metadata.errors.at(-1)" class="mt-1">{{ metadata.errors.at(-1)?.message }}</p></div>
+      <div v-else-if="metadata.semantic_status === 'partial'" class="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><strong>Some AI metadata could not be validated.</strong> Valid fields are shown; invalid fields were not coerced.<p v-if="metadata.errors.at(-1)" class="mt-1">{{ metadata.errors.at(-1)?.message }}</p></div>
+      <div class="rounded-2xl border border-line p-4"><p class="font-bold">Message sentiment</p><div v-if="sentimentQuery.data.value?.summary" class="mt-3 grid gap-2 text-sm sm:grid-cols-3"><p>Initial client: <span class="capitalize">{{ sentimentQuery.data.value.summary.initial_client_sentiment ?? 'Unavailable' }}</span></p><p>Final client: <span class="capitalize">{{ sentimentQuery.data.value.summary.final_client_sentiment ?? 'Unavailable' }}</span></p><p>Average: {{ sentimentQuery.data.value.summary.average_client_sentiment_score?.toFixed(2) ?? 'Unavailable' }}</p><p>Negative peaks: {{ sentimentQuery.data.value.summary.escalation_points.length }}</p><p>Potential recoveries: {{ sentimentQuery.data.value.summary.recovery_points.length }}</p><p>Status: <span class="capitalize">{{ sentimentQuery.data.value.status }}</span></p></div><p v-else class="mt-2 text-sm text-muted">Sentiment analysis: not available</p></div>
       <div v-if="conversation.has_audio" class="rounded-2xl border border-line p-4"><p class="font-bold">Audio metrics</p><div v-if="audioQuery.data.value?.status === 'completed'" class="mt-3 grid gap-2 text-sm sm:grid-cols-3"><p>Speech: {{ seconds(audioQuery.data.value.speech_duration_seconds) }}</p><p>Silence: {{ percent(audioQuery.data.value.silence_ratio) }}</p><p>Peak: {{ audioQuery.data.value.peak_dbfs?.toFixed(1) ?? 'Unavailable' }} dBFS</p><p>Sample rate: {{ audioQuery.data.value.sample_rate }} Hz</p><p>Channels: {{ audioQuery.data.value.channel_count }}</p><p>Speech segments: {{ audioQuery.data.value.speech_segment_count }}</p></div><p v-else-if="audioQuery.data.value?.status === 'failed'" class="mt-2 text-sm text-red-700">{{ audioQuery.data.value.error }}</p><p v-else class="mt-2 text-sm text-muted">Audio analysis: {{ metadata.audio_status.replaceAll('_', ' ') }}</p></div>
       <p class="text-xs text-muted">Extractor {{ metadata.extractor_version }}</p>
     </div>

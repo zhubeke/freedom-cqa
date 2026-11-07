@@ -8,6 +8,7 @@
     "start": "node dist/apps/api/server.js",
     "worker": "node dist/apps/worker/server.js",
     "llm:check": "tsx --env-file=../.env src/apps/llm-connectivity.ts",
+    "ai:status": "tsx --env-file=../.env src/apps/ai-status.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test --import tsx src/modules/**/tests/*.test.ts"
   },
@@ -16,12 +17,14 @@
     "@fastify/multipart": "^9.0.3",
     "@fastify/type-provider-typebox": "^5.1.0",
     "@sinclair/typebox": "^0.34.28",
+    "bottleneck": "^2.19.5",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "ioredis": "^5.5.0",
     "kafkajs": "^2.2.4",
     "luxon": "^3.7.2",
     "mongodb": "^6.13.0",
+    "p-retry": "^6.2.1",
     "simple-statistics": "^8.0.0"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
-export const METADATA_EXTRACTOR_VERSION = "deterministic-v1+semantic-v1";
+export const METADATA_EXTRACTOR_VERSION = "deterministic-v1+semantic-v2";
 
-export type MetadataStatus = "pending" | "processing" | "completed" | "failed" | "not_applicable";
+export type MetadataStatus = "pending" | "processing" | "completed" | "partial" | "failed" | "not_applicable";
 
 export interface NormalizedMessage {
   message_id: string;

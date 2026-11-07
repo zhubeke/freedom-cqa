@@ -18,9 +18,18 @@ import { publishPendingEvaluationCompletions } from "../../modules/evaluation-or
 import { MetadataRepository } from "../../modules/conversation-metadata/adapters/persistence/metadata-repository.js";
 import { MetadataConsumer } from "../../modules/conversation-metadata/adapters/events/metadata-consumer.js";
 import { IngestionDispatchConsumer } from "../../modules/conversation-metadata/adapters/events/ingestion-dispatch-consumer.js";
-import { AUDIO_ANALYZED_TOPIC, AUDIO_REQUESTED_TOPIC, METADATA_COMPLETED_TOPIC, METADATA_REQUESTED_TOPIC } from "../../modules/conversation-metadata/adapters/events/topics.js";
-import { CloudflareGateway } from "../../modules/llm-gateway/adapters/cloudflare-gateway.js";
+import { AUDIO_ANALYZED_TOPIC, AUDIO_REQUESTED_TOPIC, METADATA_COMPLETED_TOPIC, METADATA_REQUESTED_TOPIC, SENTIMENT_COMPLETED_TOPIC, SENTIMENT_REQUESTED_TOPIC } from "../../modules/conversation-metadata/adapters/events/topics.js";
+import { CloudflareGateway, createLlmLimiter } from "../../modules/llm-gateway/adapters/cloudflare-gateway.js";
 import { publishPendingMetadataCompletions } from "../../modules/conversation-metadata/application/publish-pending.js";
+import { SentimentRepository } from "../../modules/conversation-metadata/adapters/persistence/sentiment-repository.js";
+import { SentimentConsumer } from "../../modules/conversation-metadata/adapters/events/sentiment-consumer.js";
+import { CloudflareCredentialPool } from "../../modules/llm-gateway/adapters/cloudflare-credential-pool.js";
+import { ClassificationRepository } from "../../modules/action-classification/adapters/persistence/classification-repository.js";
+import { ClassificationConsumer } from "../../modules/action-classification/adapters/events/classification-consumer.js";
+import { ClassificationTriggerConsumer } from "../../modules/action-classification/adapters/events/classification-trigger-consumer.js";
+import { ACTION_CLASSIFIED_TOPIC, CLASSIFICATION_REQUESTED_TOPIC } from "../../modules/action-classification/adapters/events/topics.js";
+import { TabPfnAdapter } from "../../modules/action-classification/adapters/tabpfn/tabpfn-adapter.js";
+import { publishPendingClassifications } from "../../modules/action-classification/application/publish-pending.js";
 
 const config = loadConfig();
 const connections = createConnections(config);
@@ -35,6 +44,14 @@ const batches = new BatchRepository(connections.mongodb.db);
 await batches.ensureIndexes();
 const metadata = new MetadataRepository(connections.mongodb.db);
 await metadata.ensureIndexes();
+const sentiments = new SentimentRepository(connections.mongodb.db);
+await sentiments.ensureIndexes();
+const classifications = new ClassificationRepository(connections.mongodb.db);
+await classifications.ensureIndexes();
+const llmGateway = config.llm.credentialPoolEnabled && config.llm.profiles?.some((profile) => profile.enabled)
+  ? new CloudflareCredentialPool(config.llm, fetch, config.llm.profiles, config.redis.url)
+  : new CloudflareGateway(config.llm, fetch, createLlmLimiter(config.llm));
+const tabpfn = new TabPfnAdapter(config.tabpfn);
 
 const admin = connections.redpanda.kafka.admin();
 await admin.connect();
@@ -51,6 +68,10 @@ await admin.createTopics({ waitForLeaders: true, topics: [
   ,{ topic: METADATA_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 }
   ,{ topic: AUDIO_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 }
   ,{ topic: AUDIO_ANALYZED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: SENTIMENT_REQUESTED_TOPIC, numPartitions: Math.max(1, Math.min(2, config.llm.maxConcurrency)), replicationFactor: 1 }
+  ,{ topic: SENTIMENT_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: CLASSIFICATION_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: ACTION_CLASSIFIED_TOPIC, numPartitions: 1, replicationFactor: 1 }
 ] });
 await admin.disconnect();
 
@@ -67,7 +88,8 @@ const evaluationConsumer = new EvaluationConsumer(
   connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-evaluations`, retry: { retries: 8 } }),
   producer,
   connections.mongodb.db,
-  config
+  config,
+  llmGateway
 );
 await evaluationConsumer.start();
 const batchConsumer = new BatchConsumer(
@@ -87,13 +109,29 @@ const metadataConsumer = new MetadataConsumer(
   connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-metadata`, retry: { retries: 8 } }),
   producer,
   metadata,
-  new CloudflareGateway(config.llm)
+  llmGateway
 );
 await metadataConsumer.start();
+const sentimentConsumer = new SentimentConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-sentiment`, retry: { retries: 8 } }),
+  producer,
+  sentiments,
+  llmGateway,
+  config.sentiment.batchSize
+);
+await sentimentConsumer.start();
+const classificationConsumer = new ClassificationConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-classifications`, retry: { retries: 8 } }), producer, classifications, tabpfn, config
+);
+await classificationConsumer.start();
+const classificationTriggerConsumer = new ClassificationTriggerConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-classification-triggers`, retry: { retries: 8 } }), producer, classifications, connections.mongodb.db
+);
+await classificationTriggerConsumer.start();
 
 let ready = true;
 const recovery = async () => {
-  try { await Promise.all([publishPendingImports(imports, producer), publishPendingEvaluations(evaluations, producer), publishPendingEvaluationCompletions(evaluations, producer), publishPendingBatches(batches, producer), publishPendingBatchCompletions(batches, producer), publishPendingMetadataCompletions(metadata, producer)]); ready = true; }
+  try { await Promise.all([publishPendingImports(imports, producer), publishPendingEvaluations(evaluations, producer), publishPendingEvaluationCompletions(evaluations, producer), publishPendingBatches(batches, producer), publishPendingBatchCompletions(batches, producer), publishPendingMetadataCompletions(metadata, producer), publishPendingClassifications(classifications, producer), evaluationConsumer.recoverDeferredRetries()]); ready = true; }
   catch (error) { ready = false; console.error("Pending publication recovery failed", error); }
 };
 await recovery();
@@ -112,7 +150,7 @@ const shutdown = async () => {
   ready = false;
   clearInterval(recoveryTimer);
   healthServer.close();
-  await Promise.allSettled([consumer.close(), evaluationConsumer.close(), batchConsumer.close(), dispatchConsumer.close(), metadataConsumer.close(), producer.disconnect(), connections.mongodb.close(), connections.redpanda.close()]);
+  await Promise.allSettled([consumer.close(), evaluationConsumer.close(), batchConsumer.close(), dispatchConsumer.close(), metadataConsumer.close(), sentimentConsumer.close(), classificationConsumer.close(), classificationTriggerConsumer.close(), producer.disconnect(), connections.mongodb.close(), connections.redpanda.close()]);
   process.exit(0);
 };
 process.on("SIGINT", () => void shutdown());

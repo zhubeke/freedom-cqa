@@ -65,7 +65,7 @@ export async function evaluateCriterion(input: { gateway: LlmGateway; language: 
   let repairAttempted = false;
   for (let attempt = 0; attempt <= input.maxRetries; attempt += 1) {
     try {
-      const response = await input.gateway.complete(nextPrompt);
+      const response = await input.gateway.complete(nextPrompt, { workflow: "evaluation" });
       try {
         return validateCriterionResult(extractJson(response.content), input.externalCode, input.criterion, input.messages, response);
       } catch (error) {

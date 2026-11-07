@@ -10,6 +10,8 @@ import ConversationInfo from "../../components/ConversationInfo/ConversationInfo
 import ConversationTranscript from "../../components/ConversationTranscript/ConversationTranscript.vue";
 import EvaluationPanel from "../../components/EvaluationPanel/EvaluationPanel.vue";
 import ConversationMetadataPanel from "../../components/ConversationMetadataPanel/ConversationMetadataPanel.vue";
+import ConversationSentimentTimeline from "../../components/ConversationSentimentTimeline/ConversationSentimentTimeline.vue";
+import RecommendedActionCard from "../../components/RecommendedActionCard/RecommendedActionCard.vue";
 import type { ConversationDetail } from "../../shared/types/conversation";
 import { useScrollToMessage } from "./composables/useScrollToMessage";
 
@@ -76,6 +78,8 @@ async function navigateToEvidence(messageId: string): Promise<void> {
       <ConversationTranscript class="lg:col-start-1 lg:row-start-1" :conversation="conversationQuery.data.value" :highlighted-message-id="highlightedMessageId" />
     </div>
     <EvaluationPanel :conversation-id="conversationId" @evidence="navigateToEvidence" />
+    <RecommendedActionCard :conversation-id="conversationId" @evidence="navigateToEvidence" />
+    <ConversationSentimentTimeline :conversation="conversationQuery.data.value" @message="navigateToEvidence" />
     <ConversationMetadataPanel :conversation="conversationQuery.data.value" />
   </div>
 </template>

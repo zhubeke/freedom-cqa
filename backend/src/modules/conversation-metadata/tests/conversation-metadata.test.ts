@@ -5,7 +5,7 @@ import { Value } from "@sinclair/typebox/value";
 import { normalizeConversation } from "../../conversation-ingestion/application/normalize-conversation.js";
 import type { DatasetEnvelope, SourceRecord } from "../../conversation-ingestion/schemas/dataset.js";
 import { extractDeterministicMetadata } from "../application/extract-deterministic.js";
-import { extractSemanticMetadata } from "../application/extract-semantic.js";
+import { extractSemanticMetadata, extractSemanticMetadataPartial, normalizeModelVocabulary } from "../application/extract-semantic.js";
 import { SemanticMetadataSchema } from "../schemas/metadata.schemas.js";
 import type { NormalizedConversation } from "../application/metadata.types.js";
 
@@ -85,4 +85,23 @@ test("Cloudflare failure does not prevent deterministic extraction", async () =>
   const gateway = { complete: async () => { throw new Error("Cloudflare unavailable"); } };
   await assert.rejects(() => extractSemanticMetadata(conversation, gateway), /Cloudflare unavailable/);
   assert.equal(deterministic.conversation.duration_seconds.value, 124);
+});
+
+test("semantic enums normalize case and separators only", () => {
+  const value = semanticFixture("p1-en-006");
+  value.customer_sentiment.initial = "NEGATIVE";
+  value.operator_behavior.politeness.rating = "NOT OBSERVABLE";
+  const normalized = normalizeModelVocabulary(value) as typeof value;
+  assert.equal(normalized.customer_sentiment.initial, "negative");
+  assert.equal(normalized.operator_behavior.politeness.rating, "not_observable");
+});
+
+test("invalid semantic rating remains invalid and produces a partial extraction", async () => {
+  const value = semanticFixture("p1-en-006");
+  value.operator_behavior.empathy.rating = "warm";
+  const gateway = { complete: async () => ({ content: JSON.stringify(value), modelId: "test", latencyMs: 1, usage: null }) };
+  const result = await extractSemanticMetadataPartial(normalized("p1-en-006"), gateway);
+  assert.ok(result.validationErrors.some((error) => error.path === "/operator_behavior/empathy/rating"));
+  assert.equal(result.semantic.customer_intent?.primary_intent.label, value.customer_intent.primary_intent.label);
+  assert.equal((result.semantic.operator_behavior?.empathy as { rating?: string }).rating, undefined);
 });

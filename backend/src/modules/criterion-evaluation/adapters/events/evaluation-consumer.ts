@@ -4,8 +4,7 @@ import type { Db } from "mongodb";
 import type { AppConfig } from "../../../../config/config.js";
 import type { ChecklistVersionRecord } from "../../../checklist-management/domain/checklist.types.js";
 import { calculateEvaluationScore } from "../../../score-calculation/application/calculate-evaluation-score.js";
-import { CloudflareGateway } from "../../../llm-gateway/adapters/cloudflare-gateway.js";
-import { LlmGatewayError } from "../../../llm-gateway/application/llm-gateway.js";
+import { LlmGatewayError, type LlmGateway } from "../../../llm-gateway/application/llm-gateway.js";
 import { criterionEvent } from "../../../evaluation-orchestration/application/events.js";
 import { publishEvaluationCompletion } from "../../../evaluation-orchestration/application/publish-pending-completions.js";
 import { CRITERION_COMPLETED_TOPIC, CRITERION_REQUESTED_TOPIC, EVALUATION_REQUESTED_TOPIC } from "../../../evaluation-orchestration/adapters/events/topics.js";
@@ -18,10 +17,8 @@ type ChecklistVersionDocument = Omit<ChecklistVersionRecord, "id"> & { _id: stri
 
 export class EvaluationConsumer {
   private readonly repository: EvaluationRepository;
-  private readonly gateway: CloudflareGateway;
-  constructor(private readonly consumer: Consumer, private readonly producer: Producer, private readonly db: Db, private readonly config: AppConfig) {
+  constructor(private readonly consumer: Consumer, private readonly producer: Producer, private readonly db: Db, private readonly config: AppConfig, private readonly gateway: LlmGateway) {
     this.repository = new EvaluationRepository(db);
-    this.gateway = new CloudflareGateway(config.llm);
   }
   async start() {
     await this.repository.ensureIndexes();
@@ -62,7 +59,7 @@ export class EvaluationConsumer {
     const criterion = loaded.version.criteria.find((item) => item.id === criterionId && item.enabled);
     if (!criterion) return;
     const existing = await this.repository.criteria().findOne({ evaluation_run_id: runId, criterion_id: criterionId });
-    if (existing?.processing_state === "completed" || existing?.processing_state === "error") { await this.finalize(runId, loaded.version); return; }
+    if (existing?.processing_state === "completed") { await this.finalize(runId, loaded.version); return; }
     const now = new Date(); const externalCode = organizerCode(criterion);
     await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $setOnInsert: {
       _id: randomUUID(), evaluation_run_id: runId, criterion_id: criterionId, external_code: externalCode, criterion_name: criterion.display_name, display_order: criterion.display_order,
@@ -71,7 +68,7 @@ export class EvaluationConsumer {
       latency_ms: null, token_usage: null, processing_state: "processing", error: null, error_category: null, created_at: now, completed_at: null
     } }, { upsert: true });
     try {
-      const result = await evaluateCriterion({ gateway: this.gateway, language: String(loaded.conversation.normalized_language), messages: loaded.conversation.transcript as EvaluationMessage[], criterion, externalCode, maxRetries: this.config.llm.maxRetries });
+      const result = await evaluateCriterion({ gateway: this.gateway, language: String(loaded.conversation.normalized_language), messages: loaded.conversation.transcript as EvaluationMessage[], criterion, externalCode, maxRetries: 1 });
       await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: {
         raw_value: result.value, is_na: result.value === null, na_rationale: result.value === null ? result.rationale : null,
         explanation: result.rationale, evidence_message_ids: result.evidence_message_ids, evidence_turns: result.evidence_turns,
@@ -81,14 +78,23 @@ export class EvaluationConsumer {
     } catch (error) {
       const category = error instanceof LlmGatewayError ? error.category : "malformed_response";
       const detail = error instanceof LlmGatewayError ? error.message : "Model output could not be validated";
-      await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: { processing_state: "error", error: detail, error_category: category, completed_at: new Date() } });
+      const retryCount = (existing?.retry_count ?? 0) + 1;
+      const capacityDeferred = error instanceof LlmGatewayError && ["quota_exhausted", "rate_limited", "provider_unavailable"].includes(error.category);
+      if (error instanceof LlmGatewayError && error.retryable && (capacityDeferred || retryCount <= this.config.llm.maxRetries)) {
+        const delay = error.category === "quota_exhausted" ? (this.config.llm.quotaRecheckMs ?? 21_600_000) : Math.max(error.retryAfterMs ?? 0, Math.min(60_000, 2 ** Math.min(retryCount, 5) * 2_000 + Math.floor(Math.random() * 1_000)));
+        const nextRetryAt = new Date(Date.now() + delay);
+        await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: { processing_state: "retry_scheduled", error: detail, error_category: category, retry_count: retryCount, next_retry_at: nextRetryAt, completed_at: null } });
+        await this.repository.runs().updateOne({ run_id: runId }, { $set: { status: "waiting", error: "Waiting for AI capacity", error_category: category, next_retry_at: nextRetryAt } });
+        return;
+      }
+      await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: { processing_state: "error", error: detail, error_category: category, retry_count: retryCount, completed_at: new Date(), next_retry_at: null } });
     }
     await this.producer.send({ topic: CRITERION_COMPLETED_TOPIC, messages: [{ key: `${runId}:${criterionId}`, value: JSON.stringify({ ...criterionEvent(loaded.run, criterionId), processing_state: (await this.repository.criteria().findOne({ evaluation_run_id: runId, criterion_id: criterionId }))?.processing_state }) }] });
     await this.finalize(runId, loaded.version);
   }
   private async finalize(runId: string, version: ChecklistVersionRecord) {
     const results = await this.repository.criteria().find({ evaluation_run_id: runId }).toArray();
-    const finished = results.filter((item) => item.processing_state !== "processing");
+    const finished = results.filter((item) => item.processing_state === "completed" || item.processing_state === "error");
     await this.repository.runs().updateOne({ run_id: runId }, { $set: { completed_criteria: finished.length } });
     const enabled = version.criteria.filter((criterion) => criterion.enabled);
     if (finished.length < enabled.length) return;
@@ -108,6 +114,22 @@ export class EvaluationConsumer {
   }
   private async publishCompleted(run: NonNullable<Awaited<ReturnType<EvaluationRepository["findRun"]>>>) {
     await publishEvaluationCompletion(this.repository, this.producer, run);
+  }
+  async recoverDeferredRetries() {
+    const due = await this.repository.criteria().find({ processing_state: "retry_scheduled", next_retry_at: { $lte: new Date() } }).limit(100).toArray();
+    for (const criterion of due) {
+      const claimed = await this.repository.criteria().findOneAndUpdate(
+        { _id: criterion._id, processing_state: "retry_scheduled" },
+        { $set: { processing_state: "processing", next_retry_at: null } },
+        { returnDocument: "after" }
+      );
+      if (!claimed) continue;
+      const run = await this.repository.findRun(criterion.evaluation_run_id);
+      if (!run) continue;
+      await this.repository.runs().updateOne({ run_id: run.run_id }, { $set: { status: "processing", error: null, next_retry_at: null } });
+      const event = criterionEvent(run, criterion.criterion_id);
+      await this.producer.send({ topic: CRITERION_REQUESTED_TOPIC, messages: [{ key: `${run.run_id}:${criterion.criterion_id}`, value: JSON.stringify(event) }] });
+    }
   }
   async close() { await this.consumer.disconnect(); }
 }

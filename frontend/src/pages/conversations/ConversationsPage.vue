@@ -22,6 +22,7 @@ import type {
   ImportStatus
 } from "../../shared/types/conversation";
 import type { EvaluationBatch } from "../../shared/types/batch";
+import { ACTION_CODES, ACTION_LABELS, type ActionCode } from "../../shared/types/action";
 
 const route = useRoute();
 const router = useRouter();
@@ -33,6 +34,9 @@ const initialTab = queryValue(route.query.channel);
 const searchQuery = ref(queryValue(route.query.search));
 const language = ref<ConversationLanguage>(validLanguage(initialLanguage) ? initialLanguage : "all");
 const activeTab = ref<ConversationTab>(validTab(initialTab) ? initialTab : "all");
+const validAction = (value: string): value is ActionCode => ACTION_CODES.includes(value as ActionCode);
+const initialAction = queryValue(route.query.action);
+const action = ref<ActionCode | "all">(validAction(initialAction) ? initialAction : "all");
 const page = ref(Math.max(1, Number.parseInt(queryValue(route.query.page), 10) || 1));
 const dialogOpen = ref(false);
 const batchDialogOpen = ref(false);
@@ -40,15 +44,16 @@ const activeBatchId = ref(window.localStorage.getItem("cqa-active-batch-id") ?? 
 const importId = ref<string>();
 const queryClient = useQueryClient();
 let syncingRoute = false;
-watch([searchQuery, language, activeTab], () => {
+watch([searchQuery, language, activeTab, action], () => {
   if (!syncingRoute) page.value = 1;
 });
-watch([searchQuery, language, activeTab, page], () => {
+watch([searchQuery, language, activeTab, action, page], () => {
   if (syncingRoute) return;
   const query: Record<string, string> = {};
   if (searchQuery.value.trim()) query.search = searchQuery.value.trim();
   if (language.value !== "all") query.language = language.value;
   if (activeTab.value !== "all") query.channel = activeTab.value;
+  if (action.value !== "all") query.action = action.value;
   if (page.value > 1) query.page = String(page.value);
   void router.replace({ name: "conversations", query });
 });
@@ -60,6 +65,7 @@ watch(() => route.query, (query) => {
   searchQuery.value = queryValue(query.search);
   language.value = validLanguage(nextLanguage) ? nextLanguage : "all";
   activeTab.value = validTab(nextTab) ? nextTab : "all";
+  const nextAction = queryValue(query.action); action.value = validAction(nextAction) ? nextAction : "all";
   page.value = Math.max(1, Number.parseInt(queryValue(query.page), 10) || 1);
   queueMicrotask(() => { syncingRoute = false; });
 });
@@ -69,6 +75,7 @@ const listPath = computed(() => {
   if (searchQuery.value.trim()) params.set("search", searchQuery.value.trim());
   if (language.value !== "all") params.set("language", language.value);
   if (activeTab.value !== "all") params.set("channel", activeTab.value);
+  if (action.value !== "all") params.set("action", action.value);
   return `/v1/conversations?${params}`;
 });
 const conversationsQuery = useQuery({
@@ -85,8 +92,9 @@ const conversationsErrorTitle = computed(() => {
 const conversations = computed<Conversation[]>(() => (conversationsQuery.data.value?.items ?? []).map((item) => ({
   dataset_group_id: item.dataset_group_id, conversation_id: item.conversation_id,
   language: item.normalized_language, channel: item.normalized_channel,
-  message_count: item.message_count, duration_ms: item.duration_ms, has_audio: item.has_audio
-})));
+  message_count: item.message_count, duration_ms: item.duration_ms, has_audio: item.has_audio,
+  quality_score: item.quality_score, recommended_action: item.recommended_action, classification_source: item.classification_source, classification_status: item.classification_status
+})).sort((a, b) => (a.recommended_action ?? "ZZZ").localeCompare(b.recommended_action ?? "ZZZ") || a.conversation_id.localeCompare(b.conversation_id)));
 
 const upload = useMutation({
   mutationFn: (file: File) => apiUpload<{ import_id: string }>("/v1/datasets/import", file),
@@ -144,13 +152,20 @@ function batchStarted(batch: EvaluationBatch) {
           </div>
         </div>
         <div class="mt-4">
-          <ConversationFilters v-model:language="language" />
+          <div class="flex flex-wrap items-center gap-3">
+            <ConversationFilters v-model:language="language" />
+            <label class="text-sm text-muted">Action
+              <select v-model="action" class="ml-2 min-h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink">
+                <option value="all">All actions</option><option v-for="code in ACTION_CODES" :key="code" :value="code">{{ ACTION_LABELS[code] }}</option>
+              </select>
+            </label>
+          </div>
         </div>
       </div>
 
       <ConversationList
         :conversations="conversations"
-        :has-active-filters="Boolean(searchQuery || language !== 'all' || activeTab !== 'all')"
+        :has-active-filters="Boolean(searchQuery || language !== 'all' || activeTab !== 'all' || action !== 'all')"
         :loading="conversationsQuery.isLoading.value && !conversationsQuery.isError.value"
         :error="conversationsQuery.error.value?.message"
         :error-title="conversationsErrorTitle"

@@ -10,34 +10,22 @@ function parseJson(content: string): unknown {
   catch { throw new Error("Semantic metadata response is not valid JSON"); }
 }
 
-function normalizeModelVocabulary(value: unknown): unknown {
+export function normalizeModelVocabulary(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   const root = value as Record<string, unknown>;
   const behavior = root.operator_behavior as Record<string, unknown> | undefined;
-  const ratingAliases: Record<string, string> = {
-    high: "good", medium: "fair", low: "poor", positive: "good", neutral: "fair", negative: "poor",
-    very_good: "excellent", very_poor: "poor", unknown: "not_observable", "n/a": "not_observable"
-  };
+  const allowedRatings = new Set(["poor", "fair", "good", "excellent", "not_observable"]);
   for (const key of ["politeness", "empathy", "clarity", "responsiveness"]) {
     const item = behavior?.[key] as Record<string, unknown> | undefined;
     if (typeof item?.rating === "string") {
       const rating = item.rating.toLowerCase().replaceAll(" ", "_");
-      item.rating = ratingAliases[rating]
-        ?? (/not_|unknown|unobservable|insufficient/.test(rating) ? "not_observable"
-          : /poor|low|impolite|unclear|unresponsive|inappropriate|lack/.test(rating) ? "poor"
-          : /fair|medium|moderate|partial/.test(rating) ? "fair"
-          : /excellent|very_|exceptional/.test(rating) ? "excellent"
-          : /good|high|polite|clear|responsive|empathetic|professional|adequate|effective/.test(rating) ? "good"
-          : item.rating);
+      if (allowedRatings.has(rating)) item.rating = rating;
     }
   }
   const sentiment = root.customer_sentiment as Record<string, unknown> | undefined;
   for (const key of ["overall", "initial", "final"]) {
     const item = sentiment?.[key];
-    if (typeof item === "string" && !["positive", "neutral", "negative", "mixed"].includes(item)) {
-      const normalized = item.toLowerCase();
-      sentiment![key] = normalized.includes("mixed") ? "mixed" : normalized.includes("negative") ? "negative" : normalized.includes("positive") ? "positive" : normalized.includes("neutral") ? "neutral" : item;
-    }
+    if (typeof item === "string") sentiment![key] = item.trim().toLowerCase().replaceAll(" ", "_");
   }
   for (const key of ["frustration_indicators", "emotional_changes"]) {
     const items = sentiment?.[key];
@@ -73,7 +61,7 @@ function evidenceIds(value: unknown): string[] {
 }
 
 export async function extractSemanticMetadata(conversation: NormalizedConversation, gateway: LlmGateway): Promise<SemanticMetadata> {
-  const response = await gateway.complete(semanticMetadataPrompt(conversation), { maxTokens: 2200 });
+  const response = await gateway.complete(semanticMetadataPrompt(conversation), { maxTokens: 2200, workflow: "metadata" });
   const parsed = normalizeModelVocabulary(parseJson(response.content));
   if (!Value.Check(SemanticMetadataSchema, parsed)) {
     const detail = [...Value.Errors(SemanticMetadataSchema, parsed)].slice(0, 5).map((error) => `${error.path}: ${error.message}`).join("; ");
@@ -83,4 +71,35 @@ export async function extractSemanticMetadata(conversation: NormalizedConversati
   const invalid = [...new Set(evidenceIds(parsed).filter((id) => !validIds.has(id)))];
   if (invalid.length) throw new Error(`Semantic metadata contains unknown evidence IDs: ${invalid.join(", ")}`);
   return parsed as SemanticMetadata;
+}
+
+export interface PartialSemanticExtraction {
+  semantic: Partial<SemanticMetadata>;
+  validationErrors: Array<{ path: string; message: string }>;
+}
+
+function removeInvalidPath(root: unknown, path: string): void {
+  const parts = path.split("/").filter(Boolean);
+  if (!root || typeof root !== "object" || !parts.length) return;
+  let parent = root as Record<string, unknown>;
+  for (const part of parts.slice(0, -1)) {
+    const child = parent[part];
+    if (!child || typeof child !== "object") return;
+    parent = child as Record<string, unknown>;
+  }
+  delete parent[parts.at(-1)!];
+}
+
+export async function extractSemanticMetadataPartial(conversation: NormalizedConversation, gateway: LlmGateway): Promise<PartialSemanticExtraction> {
+  const response = await gateway.complete(semanticMetadataPrompt(conversation), { maxTokens: 2200, workflow: "metadata" });
+  const parsed = normalizeModelVocabulary(parseJson(response.content));
+  const errors = [...Value.Errors(SemanticMetadataSchema, parsed)]
+    .map((error) => ({ path: error.path, message: error.message }))
+    .filter((error, index, all) => all.findIndex((candidate) => candidate.path === error.path) === index);
+  const partial = structuredClone(parsed) as Partial<SemanticMetadata>;
+  for (const error of errors) removeInvalidPath(partial, error.path);
+  const validIds = new Set(conversation.transcript.map((message) => message.message_id));
+  const invalid = [...new Set(evidenceIds(partial).filter((id) => !validIds.has(id)))];
+  if (invalid.length) throw new Error(`Semantic metadata contains unknown evidence IDs: ${invalid.join(", ")}`);
+  return { semantic: partial, validationErrors: errors };
 }

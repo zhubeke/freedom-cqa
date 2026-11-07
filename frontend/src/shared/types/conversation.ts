@@ -10,6 +10,10 @@ export interface Conversation {
   message_count: number;
   duration_ms: number | null;
   has_audio: boolean;
+  quality_score: number | null;
+  recommended_action: import("./action").ActionCode | null;
+  classification_source: "rules" | "tabpfn" | null;
+  classification_status: string;
 }
 
 export interface ConversationListResponse {
@@ -17,7 +21,8 @@ export interface ConversationListResponse {
     dataset_group_id: string; conversation_id: string;
     normalized_language: Conversation["language"];
     normalized_channel: Conversation["channel"];
-    message_count: number; duration_ms: number | null; has_audio: boolean;
+    message_count: number; duration_ms: number | null; has_audio: boolean; quality_score: number | null;
+    recommended_action: import("./action").ActionCode | null; classification_source: "rules" | "tabpfn" | null; classification_status: string;
   }>;
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }

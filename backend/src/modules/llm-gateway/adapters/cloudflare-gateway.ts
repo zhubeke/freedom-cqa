@@ -1,4 +1,6 @@
 import { Value } from "@sinclair/typebox/value";
+import Bottleneck from "bottleneck";
+import pRetry from "p-retry";
 import type { AppConfig } from "../../../config/config.js";
 import { LlmGatewayError, type LlmCompletionOptions, type LlmGateway, type LlmMessage, type LlmResponse, type LlmUsage } from "../application/llm-gateway.js";
 import { NormalizedCustomWorkerResponseSchema } from "../schemas/gateway.schemas.js";
@@ -46,6 +48,10 @@ function retryAfterMilliseconds(value: string | null): number | undefined {
 function httpError(status: number, payload: unknown, config: AppConfig["llm"], retryAfter: string | null): LlmGatewayError {
   const detail = providerErrorMessage(payload, config);
   const suffix = detail ? `: ${detail}` : "";
+  const errors = payload && typeof payload === "object" ? (payload as { errors?: Array<{ code?: unknown; message?: unknown }> }).errors : undefined;
+  const quotaExhausted = status === 429 && (errors?.some((item) => Number(item.code) === 3036)
+    || /daily free allocation|10,?000 neurons|neuron allocation/i.test(detail ?? ""));
+  if (quotaExhausted) return new LlmGatewayError(`Cloudflare daily inference quota is exhausted${suffix}`, "quota_exhausted", true, status);
   if (status === 401) return new LlmGatewayError(`Cloudflare rejected the API token${suffix}`, "authentication", false, status);
   if (status === 403) return new LlmGatewayError(`Cloudflare token does not have inference permission${suffix}`, "authorization", false, status);
   if (status === 404) return new LlmGatewayError(`Cloudflare account, model, or inference endpoint was not found${suffix}`, "not_found", false, status);
@@ -55,23 +61,45 @@ function httpError(status: number, payload: unknown, config: AppConfig["llm"], r
 }
 
 export class CloudflareGateway implements LlmGateway {
-  private rateTail: Promise<void> = Promise.resolve();
-  private nextRequestAt = 0;
-  constructor(private readonly config: AppConfig["llm"], private readonly fetcher: typeof fetch = fetch) {}
-
-  private async waitForRateLimit() {
-    const scheduled = this.rateTail.then(async () => {
-      const delay = Math.max(0, this.nextRequestAt - Date.now());
-      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-      this.nextRequestAt = Date.now() + this.config.minRequestIntervalMs;
-    });
-    this.rateTail = scheduled.catch(() => undefined);
-    await scheduled;
+  private readonly tokenLimiter: Bottleneck | null;
+  constructor(
+    private readonly config: AppConfig["llm"],
+    private readonly fetcher: typeof fetch = fetch,
+    private readonly limiter: Bottleneck = createLlmLimiter(config)
+  ) {
+    this.tokenLimiter = config.tokensPerMinute > 0 ? new Bottleneck({
+      reservoir: config.tokensPerMinute,
+      reservoirRefreshAmount: config.tokensPerMinute,
+      reservoirRefreshInterval: 60_000
+    }) : null;
   }
 
   async complete(messages: LlmMessage[], options: LlmCompletionOptions = {}): Promise<LlmResponse> {
     assertConfigured(this.config);
-    await this.waitForRateLimit();
+    const scheduledRequest = () => this.limiter.schedule({ id: `${options.workflow ?? "llm"}:${crypto.randomUUID()}` }, () => this.request(messages, options));
+    return pRetry(
+      () => this.tokenLimiter
+        ? this.tokenLimiter.schedule({ weight: Math.min(options.maxTokens ?? 500, this.config.tokensPerMinute) }, scheduledRequest)
+        : scheduledRequest(),
+      {
+        retries: this.config.maxRetries,
+        factor: 2,
+        minTimeout: 500,
+        maxTimeout: 8_000,
+        randomize: true,
+        shouldRetry: (error) => error instanceof LlmGatewayError && error.retryable && error.category !== "quota_exhausted"
+          && (error.retryAfterMs ?? 0) <= this.config.maxInlineRetryDelayMs,
+        onFailedAttempt: async (error) => {
+          const retryAfterMs = error instanceof LlmGatewayError ? error.retryAfterMs : undefined;
+          if (retryAfterMs && retryAfterMs <= this.config.maxInlineRetryDelayMs) {
+            await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
+          }
+        }
+      }
+    );
+  }
+
+  private async request(messages: LlmMessage[], options: LlmCompletionOptions): Promise<LlmResponse> {
     const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.config.timeoutMs);
@@ -81,7 +109,7 @@ export class CloudflareGateway implements LlmGateway {
     try {
       const body = this.config.provider === "custom_worker"
         ? { model: this.config.model, messages }
-        : { model: this.config.model, messages, temperature: 0, max_tokens: options.maxTokens ?? 500, stream: false };
+        : { model: this.config.model, messages, temperature: 0, max_tokens: options.maxTokens ?? 500, stream: false, response_format: { type: "json_object" } };
       const response = await this.fetcher(endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${this.config.apiToken}`, "Content-Type": "application/json", Accept: "application/json" },
@@ -105,4 +133,17 @@ export class CloudflareGateway implements LlmGateway {
       throw new LlmGatewayError("Could not reach the Cloudflare inference endpoint", "network", true);
     } finally { clearTimeout(timer); }
   }
+}
+
+export function createLlmLimiter(config: AppConfig["llm"]): Bottleneck {
+  return new Bottleneck({
+    maxConcurrent: config.maxConcurrency,
+    minTime: Math.max(config.minRequestIntervalMs, Math.ceil(60_000 / config.requestsPerMinute)),
+    reservoir: config.requestsPerMinute,
+    reservoirRefreshAmount: config.requestsPerMinute,
+    reservoirRefreshInterval: 60_000,
+    highWater: Math.max(config.requestsPerMinute * 2, 20),
+    strategy: Bottleneck.strategy.LEAK,
+    rejectOnDrop: true
+  });
 }

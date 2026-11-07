@@ -1,7 +1,7 @@
 export interface LlmMessage { role: "system" | "user"; content: string }
 export interface LlmUsage { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
 export interface LlmResponse { content: string; modelId: string; latencyMs: number; usage: LlmUsage | null }
-export interface LlmCompletionOptions { maxTokens?: number }
+export interface LlmCompletionOptions { maxTokens?: number; workflow?: "evaluation" | "metadata" | "sentiment" | "connectivity" }
 export interface LlmGateway { complete(messages: LlmMessage[], options?: LlmCompletionOptions): Promise<LlmResponse> }
 
 export type LlmErrorCategory =
@@ -10,6 +10,7 @@ export type LlmErrorCategory =
   | "authorization"
   | "not_found"
   | "rate_limited"
+  | "quota_exhausted"
   | "provider_unavailable"
   | "timeout"
   | "network"

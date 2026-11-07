@@ -7,7 +7,7 @@ export interface MetadataDocument {
   conversation_id: string;
   extractor_version: string;
   deterministic: DeterministicMetadata | null;
-  semantic: SemanticMetadata | null;
+  semantic: Partial<SemanticMetadata> | null;
   deterministic_status: MetadataStatus;
   semantic_status: MetadataStatus;
   audio_status: MetadataStatus;
@@ -41,9 +41,10 @@ export class MetadataRepository {
   }
 
   async alreadyProcessed(datasetGroupId: string, conversationId: string, version: string, eventId: string): Promise<boolean> {
+    void eventId;
     return Boolean(await this.collection().findOne({
       dataset_group_id: datasetGroupId, conversation_id: conversationId, extractor_version: version,
-      source_event_ids: eventId, deterministic_status: "completed", semantic_status: { $in: ["completed", "failed"] }
+      deterministic_status: "completed", semantic_status: { $in: ["completed", "partial"] }
     }, { projection: { _id: 1 } }));
   }
 
@@ -78,10 +79,13 @@ export class MetadataRepository {
     );
   }
 
-  async saveSemantic(datasetGroupId: string, conversationId: string, version: string, semantic: SemanticMetadata): Promise<void> {
+  async saveSemantic(datasetGroupId: string, conversationId: string, version: string, semantic: Partial<SemanticMetadata>, validationErrors: Array<{ path: string; message: string }> = []): Promise<void> {
     await this.collection().updateOne(
       { dataset_group_id: datasetGroupId, conversation_id: conversationId, extractor_version: version },
-      { $set: { semantic, semantic_status: "completed", completion_publication_status: "pending", updated_at: new Date() } }
+      {
+        $set: { semantic, semantic_status: validationErrors.length ? "partial" : "completed", completion_publication_status: "pending", updated_at: new Date() },
+        ...(validationErrors.length ? { $push: { errors: { $each: validationErrors.map((error) => ({ stage: "semantic" as const, message: `${error.path}: ${error.message}`, occurred_at: new Date() })) } } } : {})
+      }
     );
   }
 

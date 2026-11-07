@@ -73,6 +73,26 @@ make help     # lists commands
 - `POST /api/v1/conversations/:id/evaluations` — queue one conversation evaluation
 - `GET /api/v1/evaluations/:id` — evaluation progress and criterion results
 - `GET /api/v1/conversations/:id/evaluations` — historical runs
+- `POST /api/v1/conversations/:id/classify` — asynchronously classify one conversation
+- `GET /api/v1/conversations/:id/action` — latest primary recommended action
+- `GET /api/v1/actions` — action taxonomy
+- `GET /api/v1/classification/labels` — proposed and verified labels
+- `POST /api/v1/classification/labels/:id/verify` — verify or correct a proposed label
+- `GET /api/v1/classification/status` — verified-label and TabPFN readiness
+- `POST /api/v1/datasets/:groupId/classify` — asynchronously classify a dataset
+
+## Action classification and TabPFN
+
+Classification runs in the existing pipeline worker and makes no Cloudflare LLM calls. With `TABPFN_ENABLED=false`, or until at least two classes have three verified labels each and twelve eligible labels total, the worker transparently uses the versioned deterministic rules. Set a valid `TABPFN_API_KEY` only when you intentionally want Prior Labs fitting and prediction; only allowlisted structured features are uploaded. No transcript, conversation ID, customer identifier, or audio URL is sent.
+
+To classify the local DEV dataset without external AI calls:
+
+```sh
+curl -X POST http://localhost:3000/api/v1/datasets/DEV/classify -H 'content-type: application/json' -d '{}'
+curl http://localhost:3000/api/v1/classification/status
+```
+
+For multiple Cloudflare credentials, configure `CQA_CF_PROFILE_A_*` and `CQA_CF_PROFILE_B_*`. Profiles sharing an account and model share one request/concurrency budget. Blank profile variables keep the legacy `CLOUDFLARE_*` configuration active. Tokens must be newly rotated and are never returned by an API or logged.
 
 ## Repository layout
 

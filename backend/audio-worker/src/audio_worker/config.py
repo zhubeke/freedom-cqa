@@ -13,6 +13,8 @@ class Settings:
     allowed_audio_hosts: frozenset[str]
     max_download_bytes: int
     download_timeout_seconds: float
+    max_redirects: int = 5
+    media_resolution_attempts: int = 3
     requested_topic: str = "cqa.audio.requested.v1"
     analyzed_topic: str = "cqa.audio.analyzed.v1"
     processor_version: str = "audio-v1"
@@ -35,5 +37,7 @@ class Settings:
             allowed_audio_hosts=allowed,
             max_download_bytes=int(os.getenv("CQA_AUDIO_MAX_DOWNLOAD_BYTES", str(100 * 1024 * 1024))),
             download_timeout_seconds=float(os.getenv("CQA_AUDIO_DOWNLOAD_TIMEOUT_SECONDS", "30")),
+            max_redirects=int(os.getenv("CQA_AUDIO_MAX_REDIRECTS", "5")),
+            media_resolution_attempts=int(os.getenv("CQA_AUDIO_MEDIA_RESOLUTION_ATTEMPTS", "3")),
         )
 

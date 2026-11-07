@@ -2,7 +2,7 @@ import type { Producer } from "kafkajs";
 import type { LlmGateway } from "../../llm-gateway/application/llm-gateway.js";
 import type { MetadataRepository } from "../adapters/persistence/metadata-repository.js";
 import { extractDeterministicMetadata } from "./extract-deterministic.js";
-import { extractSemanticMetadata } from "./extract-semantic.js";
+import { extractSemanticMetadataPartial } from "./extract-semantic.js";
 import { makeMetadataEvent, publishMetadataCompleted } from "./events.js";
 import type { MetadataEvent } from "./events.js";
 
@@ -14,8 +14,8 @@ export async function processMetadata(event: MetadataEvent, repository: Metadata
   const deterministic = extractDeterministicMetadata(conversation);
   await repository.saveDeterministic(event.dataset_group_id, event.conversation_id, event.extractor_version, deterministic);
   try {
-    const semantic = await extractSemanticMetadata(conversation, gateway);
-    await repository.saveSemantic(event.dataset_group_id, event.conversation_id, event.extractor_version, semantic);
+    const result = await extractSemanticMetadataPartial(conversation, gateway);
+    await repository.saveSemantic(event.dataset_group_id, event.conversation_id, event.extractor_version, result.semantic, result.validationErrors);
   } catch (error) {
     await repository.failSemantic(event.dataset_group_id, event.conversation_id, event.extractor_version, error instanceof Error ? error.message : "Unknown semantic extraction failure");
   }

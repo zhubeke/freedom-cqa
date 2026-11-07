@@ -40,6 +40,9 @@ export class EvaluationRepository {
       status: { $in: ["queued", "processing"] }
     });
   }
+  reusable(conversationId: string, checklistVersionId: string, modelId: string, promptVersion: string, inputFingerprint: string) {
+    return this.runs().findOne({ conversation_id: conversationId, checklist_version_id: checklistVersionId, model_id: modelId, prompt_version: promptVersion, input_fingerprint: inputFingerprint, status: "completed" }, { sort: { completed_at: -1 } });
+  }
   async createRun(input: Omit<EvaluationRunDocument, "_id" | "run_id" | "event_id" | "correlation_id">) {
     const runId = randomUUID(); const eventId = randomUUID();
     const document: EvaluationRunDocument = { _id: runId, run_id: runId, event_id: eventId, correlation_id: runId, ...input };

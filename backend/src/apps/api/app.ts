@@ -13,6 +13,7 @@ import { seedFreedomChecklist } from "../../modules/checklist-management/seed/se
 import { registerEvaluationRoutes } from "../../modules/evaluation-orchestration/adapters/http/routes.js";
 import { registerBatchRoutes } from "../../modules/batch-evaluation/adapters/http/routes.js";
 import { registerMetadataRoutes } from "../../modules/conversation-metadata/adapters/http/routes.js";
+import { registerClassificationRoutes } from "../../modules/action-classification/adapters/http/routes.js";
 
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
@@ -41,9 +42,10 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const checklistRepository = new MongoChecklistRepository(connections.mongodb.db);
   await seedFreedomChecklist(checklistRepository);
   await registerChecklistManagementRoutes(app, connections.mongodb.db);
-  await registerEvaluationRoutes(app, connections.mongodb.db, producer);
+  await registerEvaluationRoutes(app, connections.mongodb.db, producer, config);
   await registerBatchRoutes(app, connections.mongodb.db, producer, config);
   await registerMetadataRoutes(app, connections.mongodb.db, producer);
+  await registerClassificationRoutes(app, connections.mongodb.db, producer, config);
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([

@@ -7,7 +7,7 @@ export interface ConversationMetadata {
   conversation_id: string;
   extractor_version: string;
   deterministic_status: "pending" | "processing" | "completed" | "failed";
-  semantic_status: "pending" | "processing" | "completed" | "failed";
+  semantic_status: "pending" | "processing" | "completed" | "partial" | "failed";
   audio_status: "pending" | "processing" | "completed" | "failed" | "not_applicable";
   deterministic: null | {
     conversation: { duration_seconds: NullableMetric; total_message_count: number };
@@ -15,10 +15,10 @@ export interface ConversationMetadata {
     response_timing: { first_operator_response_seconds: NullableMetric; average_operator_response_seconds: NullableMetric; first_operator_response_after_handoff_seconds: NullableMetric };
   };
   semantic: null | {
-    customer_intent: { primary_intent: Intent; secondary_intents: Intent[]; resolved: boolean; unresolved_questions: Array<{ question: string }> };
-    customer_sentiment: { overall: string; score: number };
-    resolution_and_follow_up: { status: string; callback_promised: Signal; future_action_committed: Signal; further_investigation_needed: Signal; issue_open: Signal; escalation_required: Signal };
-    compliance: { identity_verification_required: Signal; identity_verification_confirmed: Signal; sensitive_information_disclosure: Signal; potential_severe_violation: Signal };
+    customer_intent?: { primary_intent: Intent; secondary_intents: Intent[]; resolved: boolean; unresolved_questions: Array<{ question: string }> };
+    customer_sentiment?: { overall?: string; score?: number };
+    resolution_and_follow_up?: { status: string; callback_promised: Signal; future_action_committed: Signal; further_investigation_needed: Signal; issue_open: Signal; escalation_required: Signal };
+    compliance?: { identity_verification_required: Signal; identity_verification_confirmed: Signal; sensitive_information_disclosure: Signal; potential_severe_violation: Signal };
   };
   errors: Array<{ stage: string; message: string }>;
 }

@@ -4,7 +4,7 @@ import { listConversations } from "../../application/list-conversations.js";
 import { getConversation } from "../../application/get-conversation.js";
 import { ConversationQueryRepository } from "../persistence/conversation-query-repository.js";
 
-interface ListQuery { page?: string; pageSize?: string; search?: string; language?: string; channel?: string; datasetGroupId?: string }
+interface ListQuery { page?: string; pageSize?: string; search?: string; language?: string; channel?: string; datasetGroupId?: string; action?: string }
 
 export async function registerConversationQueryRoutes(app: FastifyInstance, db: Db): Promise<void> {
   const repository = new ConversationQueryRepository(db);

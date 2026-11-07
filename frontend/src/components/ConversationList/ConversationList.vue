@@ -3,6 +3,7 @@ import { AlertCircle, ChevronRight, Headphones, MessageCircle, Phone, RotateCw }
 import { useRoute } from "vue-router";
 import ConversationEmptyState from "../ConversationEmptyState/ConversationEmptyState.vue";
 import type { Conversation } from "../../shared/types/conversation";
+import { ACTION_LABELS } from "../../shared/types/action";
 
 withDefaults(
   defineProps<{
@@ -49,7 +50,10 @@ const route = useRoute();
     <ConversationEmptyState v-else-if="conversations.length === 0" :filtered="hasActiveFilters" />
 
     <ul v-else class="divide-y divide-line px-2 py-2 sm:px-3" aria-label="Conversations">
-      <li v-for="conversation in conversations" :key="`${conversation.dataset_group_id}:${conversation.conversation_id}`">
+      <li v-for="(conversation, index) in conversations" :key="`${conversation.dataset_group_id}:${conversation.conversation_id}`">
+        <p v-if="index === 0 || conversations[index - 1]?.recommended_action !== conversation.recommended_action" class="px-4 pb-1 pt-4 text-xs font-bold uppercase tracking-wide text-muted">
+          {{ conversation.recommended_action ? ACTION_LABELS[conversation.recommended_action] : "Pending classification" }}
+        </p>
         <RouterLink
           :to="{ name: 'conversation-detail', params: { id: conversation.conversation_id }, query: { from: route.fullPath } }"
           class="flex items-center gap-4 rounded-2xl px-3 py-4 transition-colors hover:bg-surface sm:px-4"
@@ -65,6 +69,11 @@ const route = useRoute();
               {{ conversation.message_count }} messages
               <template v-if="conversation.duration_ms !== null"> · {{ Math.floor(conversation.duration_ms / 60000) }}m {{ Math.floor(conversation.duration_ms % 60000 / 1000) }}s</template>
             </p>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <span class="rounded-full bg-primary-soft px-2 py-1 font-semibold text-primary">{{ conversation.recommended_action ? ACTION_LABELS[conversation.recommended_action] : conversation.classification_status === 'pending' ? 'Classification pending' : conversation.classification_status }}</span>
+              <span v-if="conversation.quality_score !== null" class="rounded-full bg-surface px-2 py-1 text-muted">Quality {{ Math.round(conversation.quality_score) }}</span>
+              <span v-if="conversation.classification_source" class="rounded-full bg-surface px-2 py-1 text-muted">{{ conversation.classification_source === 'tabpfn' ? 'TabPFN' : 'Rules' }}</span>
+            </div>
           </div>
           <div class="hidden text-right text-xs text-muted sm:block">
             <p class="font-medium uppercase">{{ conversation.language }}</p>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ClipboardList, Menu, MessagesSquare, X } from "lucide-vue-next";
+import { BarChart3, ClipboardList, Menu, MessagesSquare, Scale, X } from "lucide-vue-next";
 import { ref } from "vue";
 import { visualAssets } from "../../assets";
 
@@ -26,6 +26,8 @@ const mobileMenuOpen = ref(false);
           <MessagesSquare :size="18" :stroke-width="2" aria-hidden="true" />
           Conversations
         </RouterLink>
+        <RouterLink to="/dashboard" class="relative inline-flex items-center gap-2 px-4 text-sm font-semibold text-muted transition-colors hover:text-ink" active-class="!text-primary after:absolute after:inset-x-4 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-primary"><BarChart3 :size="18" /> Dashboard</RouterLink>
+        <RouterLink to="/reviews" class="relative inline-flex items-center gap-2 px-4 text-sm font-semibold text-muted transition-colors hover:text-ink" active-class="!text-primary after:absolute after:inset-x-4 after:bottom-0 after:h-[3px] after:rounded-t-full after:bg-primary"><Scale :size="18" /> Appeals</RouterLink>
         <RouterLink
           to="/checklists"
           class="relative inline-flex items-center gap-2 px-4 text-sm font-semibold text-muted transition-colors hover:text-ink"
@@ -59,6 +61,8 @@ const mobileMenuOpen = ref(false);
         <MessagesSquare :size="19" aria-hidden="true" />
         Conversations
       </RouterLink>
+      <RouterLink to="/dashboard" class="flex min-h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold text-muted" active-class="!bg-primary-soft !text-primary" @click="mobileMenuOpen = false"><BarChart3 :size="19" /> Dashboard</RouterLink>
+      <RouterLink to="/reviews" class="flex min-h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold text-muted" active-class="!bg-primary-soft !text-primary" @click="mobileMenuOpen = false"><Scale :size="19" /> Appeals</RouterLink>
       <RouterLink
         to="/checklists"
         class="flex min-h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold text-muted"

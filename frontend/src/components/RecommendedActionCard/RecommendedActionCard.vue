@@ -35,6 +35,7 @@ const pending = computed(() => request.isPending.value || ["queued", "processing
       <span v-if="actionQuery.data.value.model_confidence !== null" class="rounded-full bg-surface px-3 py-1.5 text-muted">{{ Math.round(actionQuery.data.value.model_confidence * 100) }}% confidence</span>
       <span class="rounded-full bg-surface px-3 py-1.5 capitalize text-muted">{{ actionQuery.data.value.status }}</span>
     </div>
+    <p v-if="actionQuery.data.value?.previous_classification?.final_action" class="mt-3 text-xs text-muted">Original classification: <strong>{{ ACTION_LABELS[actionQuery.data.value.previous_classification.final_action] }}</strong></p>
     <div v-if="actionQuery.data.value?.override_reason" class="mt-4 flex gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><ShieldAlert :size="18" class="shrink-0" />{{ actionQuery.data.value.override_reason }}</div>
     <div v-if="actionQuery.data.value?.evidence_message_ids?.length" class="mt-5">
       <p class="text-xs font-semibold uppercase text-muted">Supporting evidence</p>

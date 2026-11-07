@@ -14,7 +14,7 @@ INFRA_SERVICES := mongodb redis redpanda redpanda-console
 BACKEND_SERVICES := api pipeline-worker
 FRONTEND_SERVICES := web
 
-.PHONY: help init build up down restart status health logs ai-status infra-up backend-up frontend-up wait-infra wait-backend wait-frontend wait-services audio-build audio-up audio-down audio-logs audio-health audio-test audio-model-check audio-model-warmup
+.PHONY: help init build up down restart status health logs test ai-status infra-up backend-up frontend-up wait-infra wait-backend wait-frontend wait-services audio-build audio-up audio-down audio-logs audio-health audio-test audio-model-check audio-model-warmup
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "CQA commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -82,6 +82,11 @@ logs: ## Stream logs from every Compose project
 	$(BACKEND_COMPOSE) logs -f --tail=100 & backend_pid=$$!; \
 	$(FRONTEND_COMPOSE) logs -f --tail=100 & frontend_pid=$$!; \
 	wait
+
+test: ## Run backend, frontend type/build, and audio unit checks
+	$(DOCKER) build --target test ./backend
+	$(DOCKER) build --target build ./frontend
+	$(BACKEND_COMPOSE) run --rm --no-deps audio-worker pytest -m "not real_model and not integration"
 
 ai-status: ## Validate configured Cloudflare tokens and Workers AI model access without inference
 	@cd backend && npm run ai:status

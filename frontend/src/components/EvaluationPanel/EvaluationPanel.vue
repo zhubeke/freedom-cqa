@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { AlertTriangle, CheckCircle2, ExternalLink, LoaderCircle, RotateCw, ShieldAlert, Sparkles, X } from "lucide-vue-next";
 import { listChecklists } from "../../api/checklists";
 import { evaluationKeys, getEvaluationHistory, retryEvaluation, startEvaluation } from "../../api/evaluations";
+import AppealPanel from "../AppealPanel/AppealPanel.vue";
 
 const props = defineProps<{ conversationId: string }>();
 const emit = defineEmits<{ evidence: [messageId: string] }>();
@@ -84,9 +85,10 @@ function answer(value: boolean | number | null, isNa: boolean) { return isNa ? "
       <div v-else-if="currentRun.status === 'waiting'" class="flex gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900"><LoaderCircle class="animate-spin shrink-0" :size="20" /><div><strong>Waiting for available AI capacity</strong><p class="mt-1">AI capacity temporarily unavailable. Your completed results are saved.</p></div></div>
       <div v-else-if="currentRun.status === 'failed'" class="flex items-start justify-between gap-3 rounded-2xl bg-red-50 p-4 text-sm text-red-800"><div class="flex gap-3"><AlertTriangle :size="20" class="shrink-0" /><div><strong>Retry available</strong><p class="mt-1">{{ failureLabel }}. No score has been assigned.</p></div></div><button type="button" class="button-secondary shrink-0" :disabled="retryMutation.isPending.value" @click="retryMutation.mutate()"><RotateCw :size="16" /> Retry failed criteria</button></div>
       <div v-else-if="currentRun.status === 'completed'" class="grid gap-4 sm:grid-cols-2">
-        <div class="rounded-2xl bg-surface p-5"><p class="text-xs font-bold uppercase tracking-wide text-muted">Final quality score</p><p class="mt-2 text-4xl font-black text-ink">{{ currentRun.final_score === null ? "N/A" : `${currentRun.final_score}%` }}</p></div>
+        <div class="rounded-2xl bg-surface p-5"><p class="text-xs font-bold uppercase tracking-wide text-muted">Original quality score</p><p class="mt-2 text-4xl font-black text-ink">{{ currentRun.final_score === null ? "N/A" : `${currentRun.final_score}%` }}</p><p v-if="currentRun.finalized_at" class="mt-2 text-sm font-bold text-primary">Finalized: {{ currentRun.finalized_score === null ? 'N/A' : `${currentRun.finalized_score}%` }}</p></div>
         <div class="rounded-2xl p-5" :class="currentRun.critical_flag ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'"><p class="text-xs font-bold uppercase tracking-wide">Critical violation flag</p><p class="mt-2 flex items-center gap-2 text-lg font-bold"><ShieldAlert v-if="currentRun.critical_flag" :size="22" /><CheckCircle2 v-else :size="22" />{{ currentRun.critical_flag ? "Detected" : "Not detected" }}</p></div>
       </div>
+      <AppealPanel v-if="currentRun.status === 'completed'" :conversation-id="conversationId" :run-id="currentRun.run_id" :criteria="currentRun.criteria" @evidence="emit('evidence', $event)" />
       <div v-if="currentRun.criteria.length" class="mt-5 divide-y divide-line rounded-2xl border border-line">
         <article v-for="criterion in currentRun.criteria" :key="criterion.criterion_id" class="p-4 sm:p-5">
           <div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-bold text-ink">{{ criterion.criterion_name }}</h3><p class="mt-1 text-xs text-muted">Weight {{ criterion.weight }} · Weighted score {{ criterion.weighted_contribution ?? (criterion.is_na ? 'N/A' : '—') }}</p></div><span class="rounded-lg px-3 py-1 text-sm font-black" :class="criterion.raw_value === false && !criterion.is_na ? 'bg-red-50 text-red-700' : 'bg-surface text-ink'">{{ criterion.processing_state === 'error' ? 'Failed' : criterion.processing_state === 'retry_scheduled' ? 'Waiting' : answer(criterion.raw_value, criterion.is_na) }}</span></div>

@@ -1,0 +1,3 @@
+import { apiGet } from "./client";
+export interface DashboardMetrics { totals: { conversations: number; analyzed: number; average_score: number | null; severe_violations: number; average_operator_response_ms: number | null }; score_distribution: Array<{ label: string; count: number }>; actions: Record<string, number>; languages: Record<string, number>; channels: Record<string, number>; resolution: { resolved: number; unresolved: number }; appeals: { pending: number; outcomes: Record<string, number> }; processing: Record<string, number> }
+export const getDashboard = (query: URLSearchParams, signal?: AbortSignal) => apiGet<DashboardMetrics>(`/v1/analytics/dashboard?${query}`, signal);

@@ -11,6 +11,8 @@ export interface EvaluationRunDocument {
   prompt_version?: string; input_fingerprint?: string; batch_id?: string;
   completion_publication_status?: "pending" | "published";
   next_retry_at?: Date | null;
+  checklist_snapshot?: { sections: unknown[]; criteria: unknown[] };
+  finalized_score?: number | null; finalized_critical_flag?: boolean | null; finalized_at?: Date | null;
 }
 export interface CriterionEvaluationDocument {
   _id: string; evaluation_run_id: string; criterion_id: string; external_code: string; criterion_name: string; display_order: number;

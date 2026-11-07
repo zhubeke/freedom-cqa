@@ -43,9 +43,14 @@ export class ClassificationRepository {
     const metadata = await this.db.collection("conversation_metadata").findOne({ dataset_group_id: groupId, conversation_id: conversationId }, { sort: { created_at: -1 } });
     const evaluation = await this.db.collection("evaluation_runs").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: "completed" }, { sort: { completed_at: -1 } });
     const criteria = evaluation ? await this.db.collection("criterion_evaluations").find({ evaluation_run_id: evaluation.run_id }).toArray() : [];
+    const overrides = evaluation ? await this.db.collection("appeals").find({ evaluation_run_id: evaluation.run_id, status: "OVERRIDDEN" }).sort({ updated_at: 1 }).toArray() : [];
+    const effectiveCriteria = criteria.map((criterion) => { const appeal = [...overrides].reverse().find((item: any) => item.criterion_id === criterion.criterion_id); const rawValue = appeal?.decision?.effective_value; return appeal ? { ...criterion, raw_value: rawValue, is_na: rawValue === null } : criterion; });
     const audio = await this.db.collection("audio_metrics").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: { $in: ["completed", "partial"] } }, { sort: { processing_completed_at: -1 } });
-    return { metadata, evaluation, criteria, audio };
+    const effectiveEvaluation: any = evaluation ? { ...evaluation, final_score: evaluation.finalized_score ?? evaluation.final_score, critical_flag: evaluation.finalized_critical_flag ?? evaluation.critical_flag } : evaluation;
+    return { metadata, evaluation: effectiveEvaluation, criteria: effectiveCriteria, audio };
   }
+
+  history(groupId: string | undefined, conversationId: string) { return this.results().find({ conversation_id: conversationId, ...(groupId ? { dataset_group_id: groupId } : {}), status: { $in: ["completed", "fallback"] } }, { projection: { _id: 0 } }).sort({ created_at: -1 }).limit(10).toArray(); }
 
   async complete(eventId: string, document: Record<string, unknown>) {
     const now = new Date();

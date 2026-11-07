@@ -10,5 +10,6 @@ export interface ActionResult {
   final_action: ActionCode | null; classification_source: "rules" | "tabpfn" | null; model_confidence: number | null;
   override_reason: string | null; tabpfn_unavailable_reason: string | null; evidence_message_ids: string[];
   local_rule_prediction?: { explanation: string; rule_id: string; supporting_features: Record<string, unknown> };
+  previous_classification?: ActionResult | null;
 }
 export interface ClassificationLabel { label_id: string; proposed_action: ActionCode; verified_action: ActionCode | null; verification_status: "PROPOSED" | "VERIFIED" }

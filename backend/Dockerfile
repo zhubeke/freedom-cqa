@@ -6,6 +6,9 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
+FROM build AS test
+RUN npm test
+
 FROM node:22.14.0-alpine AS production
 ENV NODE_ENV=production
 WORKDIR /app

@@ -27,7 +27,8 @@ export class EvaluationRepository {
     criteria.sort((left, right) => (left.display_order ?? Number.MAX_SAFE_INTEGER) - (right.display_order ?? Number.MAX_SAFE_INTEGER));
     const { _id, event_id, correlation_id, publication_status, publication_attempts, criteria_dispatched, active_key, ...publicRun } = run;
     void _id; void event_id; void correlation_id; void publication_status; void publication_attempts; void criteria_dispatched; void active_key;
-    return { ...publicRun, criteria: criteria.map(({ _id: criterionDocumentId, ...item }) => { void criterionDocumentId; return item; }) };
+    const appeals = await this.db.collection("appeals").find({ evaluation_run_id: runId }, { projection: { _id: 0 } }).sort({ created_at: 1 }).toArray();
+    return { ...publicRun, appeals, criteria: criteria.map(({ _id: criterionDocumentId, ...item }) => { void criterionDocumentId; return item; }) };
   }
   async history(conversationId: string) {
     const runs = await this.runs().find({ conversation_id: conversationId }).sort({ requested_at: -1 }).limit(25).toArray();

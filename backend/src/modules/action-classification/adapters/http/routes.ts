@@ -19,7 +19,9 @@ export async function registerClassificationRoutes(app: FastifyInstance, db: Db,
     return reply.code(202).send({ result_id: queued.result.result_id, status: queued.result.status, duplicate: queued.duplicate });
   });
   app.get<{ Params: { id: string }; Querystring: { datasetGroupId?: string } }>("/api/v1/conversations/:id/action", { schema: { params: ClassificationParamsSchema, querystring: TypeOptionalGroup } }, async (request, reply) => {
-    const result = await repository.latest(request.query.datasetGroupId, request.params.id); return result ?? reply.code(404).send({ error: "Classification not found" });
+    const result = await repository.latest(request.query.datasetGroupId, request.params.id); if (!result) return reply.code(404).send({ error: "Classification not found" });
+    const history = await repository.history(request.query.datasetGroupId, request.params.id);
+    return { ...result, previous_classification: history[1] ?? null };
   });
   app.get<{ Querystring: { status?: string; datasetGroupId?: string; conversationId?: string; limit?: string } }>("/api/v1/classification/labels", async (request) => {
     const filter: Record<string, unknown> = {}; if (request.query.status) filter.verification_status = request.query.status.toUpperCase(); if (request.query.datasetGroupId) filter.dataset_group_id = request.query.datasetGroupId; if (request.query.conversationId) filter.conversation_id = request.query.conversationId;

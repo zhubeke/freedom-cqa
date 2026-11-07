@@ -1,0 +1,24 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
+import { ExternalLink, LoaderCircle, MessageSquareWarning, X } from "lucide-vue-next";
+import { appealKeys, getConversationAppeals, submitAppeal } from "../../api/appeals";
+import { evaluationKeys } from "../../api/evaluations";
+import type { CriterionEvaluation } from "../../shared/types/evaluation";
+const props = defineProps<{ conversationId: string; runId: string; criteria: CriterionEvaluation[] }>();
+const emit = defineEmits<{ evidence: [messageId: string] }>(); const client = useQueryClient();
+const selectedId = ref(""); const comment = ref(""); const open = ref(false);
+const selected = computed(() => props.criteria.find((item) => item.criterion_id === selectedId.value) ?? props.criteria[0]);
+const query = useQuery({ queryKey: computed(() => appealKeys.conversation(props.conversationId)), queryFn: ({ signal }) => getConversationAppeals(props.conversationId, signal) });
+const mutation = useMutation({ mutationFn: () => submitAppeal(props.conversationId, { evaluation_run_id: props.runId, criterion_id: selected.value!.criterion_id, comment: comment.value.trim() }), onSuccess: async () => { open.value = false; comment.value = ""; await Promise.all([client.invalidateQueries({ queryKey: appealKeys.conversation(props.conversationId) }), client.invalidateQueries({ queryKey: evaluationKeys.history(props.conversationId) })]); } });
+function show() { selectedId.value = props.criteria[0]?.criterion_id ?? ""; open.value = true; }
+function value(value: boolean | number | null) { return value === null ? "N/A" : typeof value === "boolean" ? value ? "Yes" : "No" : String(value); }
+</script>
+<template>
+  <div class="mt-6 border-t border-line pt-5">
+    <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-bold text-ink">Appeals and review decisions</h3><p class="mt-1 text-sm text-muted">Challenge an individual criterion while preserving the original evaluation.</p></div><button class="button-secondary" type="button" :disabled="!criteria.length" @click="show"><MessageSquareWarning :size="16" /> Submit appeal</button></div>
+    <div v-if="query.isLoading.value" class="mt-4 text-sm text-muted">Loading appeal history…</div>
+    <div v-else-if="query.data.value?.length" class="mt-4 space-y-3"><article v-for="appeal in query.data.value.filter(a => a.evaluation_run_id === runId)" :key="appeal.appeal_id" class="rounded-2xl border border-line p-4"><div class="flex flex-wrap justify-between gap-2"><strong>{{ appeal.criterion_name }}</strong><span class="rounded-full bg-surface px-3 py-1 text-xs font-bold">{{ appeal.status.replace('_', ' ') }}</span></div><p class="mt-2 text-sm text-muted">{{ appeal.comment }}</p><div v-if="appeal.decision" class="mt-3 rounded-xl bg-surface p-3 text-sm"><strong>{{ appeal.decision.reviewer }}</strong> · {{ appeal.decision.justification }}<p v-if="appeal.status === 'OVERRIDDEN'" class="mt-1 font-semibold">Revised result: {{ value(appeal.decision.effective_value) }}</p></div></article></div>
+  </div>
+  <div v-if="open" class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" @click.self="open = false"><div class="w-full max-w-xl rounded-[1.5rem] bg-white p-6 shadow-2xl"><div class="flex justify-between"><h2 class="text-lg font-bold">Submit criterion appeal</h2><button class="icon-button" @click="open = false"><X :size="20" /></button></div><label class="label mt-5">Criterion<select v-model="selectedId" class="field mt-2"><option v-for="criterion in criteria" :key="criterion.criterion_id" :value="criterion.criterion_id">{{ criterion.criterion_name }}</option></select></label><div v-if="selected" class="mt-4 rounded-2xl bg-surface p-4"><p class="text-sm font-bold">Original result: {{ value(selected.raw_value) }}</p><p class="mt-2 text-sm text-muted">{{ selected.explanation }}</p><div class="mt-2 flex gap-2"><button v-for="id in selected.evidence_message_ids" :key="id" class="inline-flex items-center gap-1 text-xs font-bold text-primary" @click="emit('evidence', id)"><ExternalLink :size="12" /> Evidence</button></div></div><label class="label mt-4">Why do you disagree?<textarea v-model="comment" class="field mt-2 min-h-28 resize-y" maxlength="2000" /></label><p v-if="mutation.error.value" class="mt-3 text-sm text-red-700">{{ mutation.error.value.message }}</p><div class="mt-5 flex justify-end gap-3"><button class="button-secondary" @click="open = false">Cancel</button><button class="button-primary" :disabled="!comment.trim() || mutation.isPending.value" @click="mutation.mutate()"><LoaderCircle v-if="mutation.isPending.value" class="animate-spin" :size="16" /> Submit</button></div></div></div>
+</template>

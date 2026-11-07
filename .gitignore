@@ -2,6 +2,8 @@
 .DS_Store
 node_modules/
 dist/
+.playwright-cli/
+output/
 coverage/
 *.log
 .vite/

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlertCircle, ChevronRight, Headphones, MessageCircle, Phone } from "lucide-vue-next";
+import { AlertCircle, ChevronRight, Headphones, MessageCircle, Phone, RotateCw } from "lucide-vue-next";
 import { useRoute } from "vue-router";
 import ConversationEmptyState from "../ConversationEmptyState/ConversationEmptyState.vue";
 import type { Conversation } from "../../shared/types/conversation";
@@ -10,13 +10,16 @@ withDefaults(
     hasActiveFilters?: boolean;
     loading?: boolean;
     error?: string | null;
+    errorTitle?: string;
   }>(),
   {
     hasActiveFilters: false,
     loading: false,
-    error: null
+    error: null,
+    errorTitle: "Couldn’t load conversations"
   }
 );
+defineEmits<{ retry: [] }>();
 
 const route = useRoute();
 </script>
@@ -38,8 +41,9 @@ const route = useRoute();
       <div class="grid size-14 place-items-center rounded-2xl bg-primary-soft text-primary">
         <AlertCircle :size="27" aria-hidden="true" />
       </div>
-      <h2 class="mt-5 text-lg font-bold text-ink">Couldn’t load conversations</h2>
+      <h2 class="mt-5 text-lg font-bold text-ink">{{ errorTitle }}</h2>
       <p class="mt-2 max-w-md text-sm leading-6 text-muted">{{ error }}</p>
+      <button type="button" class="button-primary mt-5" @click="$emit('retry')"><RotateCw :size="16" /> Retry</button>
     </div>
 
     <ConversationEmptyState v-else-if="conversations.length === 0" :filtered="hasActiveFilters" />

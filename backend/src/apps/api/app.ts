@@ -10,6 +10,9 @@ import { registerConversationQueryRoutes } from "../../modules/conversation-quer
 import { registerChecklistManagementRoutes } from "../../modules/checklist-management/adapters/http/routes.js";
 import { MongoChecklistRepository } from "../../modules/checklist-management/adapters/persistence/checklist-repository.js";
 import { seedFreedomChecklist } from "../../modules/checklist-management/seed/seed-freedom-checklist.js";
+import { registerEvaluationRoutes } from "../../modules/evaluation-orchestration/adapters/http/routes.js";
+import { registerBatchRoutes } from "../../modules/batch-evaluation/adapters/http/routes.js";
+import { registerMetadataRoutes } from "../../modules/conversation-metadata/adapters/http/routes.js";
 
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
@@ -38,6 +41,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const checklistRepository = new MongoChecklistRepository(connections.mongodb.db);
   await seedFreedomChecklist(checklistRepository);
   await registerChecklistManagementRoutes(app, connections.mongodb.db);
+  await registerEvaluationRoutes(app, connections.mongodb.db, producer);
+  await registerBatchRoutes(app, connections.mongodb.db, producer, config);
+  await registerMetadataRoutes(app, connections.mongodb.db, producer);
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([

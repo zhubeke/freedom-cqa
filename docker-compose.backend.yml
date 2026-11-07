@@ -14,8 +14,21 @@ services:
       REDPANDA_BROKERS: ${REDPANDA_BROKERS}
       KAFKA_CLIENT_ID: ${KAFKA_CLIENT_ID}
       KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-cqa-pipeline-worker-v1}
+      CQA_LLM_PROVIDER: ${CQA_LLM_PROVIDER:-workers_ai}
+      CQA_LLM_ENDPOINT: ${CQA_LLM_ENDPOINT:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_MODEL: ${CLOUDFLARE_MODEL:-@cf/meta/llama-3.3-70b-instruct-fp8-fast}
+      CQA_LLM_TIMEOUT_MS: ${CQA_LLM_TIMEOUT_MS:-60000}
+      CQA_LLM_MAX_CONCURRENCY: ${CQA_LLM_MAX_CONCURRENCY:-4}
+      CQA_LLM_MAX_RETRIES: ${CQA_LLM_MAX_RETRIES:-2}
+      CQA_LLM_MIN_REQUEST_INTERVAL_MS: ${CQA_LLM_MIN_REQUEST_INTERVAL_MS:-0}
+      CQA_BATCH_MAX_CONCURRENCY: ${CQA_BATCH_MAX_CONCURRENCY:-2}
+      CQA_TEAM_NAME: ${CQA_TEAM_NAME:-}
     ports:
       - "${BACKEND_PORT}:3000"
+    volumes:
+      - ./results:/app/results
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
@@ -40,12 +53,43 @@ services:
       REDPANDA_BROKERS: ${REDPANDA_BROKERS}
       KAFKA_CLIENT_ID: cqa-pipeline-worker
       KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-cqa-pipeline-worker-v1}
+      CQA_LLM_PROVIDER: ${CQA_LLM_PROVIDER:-workers_ai}
+      CQA_LLM_ENDPOINT: ${CQA_LLM_ENDPOINT:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+      CLOUDFLARE_MODEL: ${CLOUDFLARE_MODEL:-@cf/meta/llama-3.3-70b-instruct-fp8-fast}
+      CQA_LLM_TIMEOUT_MS: ${CQA_LLM_TIMEOUT_MS:-60000}
+      CQA_LLM_MAX_CONCURRENCY: ${CQA_LLM_MAX_CONCURRENCY:-4}
+      CQA_LLM_MAX_RETRIES: ${CQA_LLM_MAX_RETRIES:-2}
+      CQA_LLM_MIN_REQUEST_INTERVAL_MS: ${CQA_LLM_MIN_REQUEST_INTERVAL_MS:-0}
+      CQA_BATCH_MAX_CONCURRENCY: ${CQA_BATCH_MAX_CONCURRENCY:-2}
+      CQA_TEAM_NAME: ${CQA_TEAM_NAME:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
       timeout: 5s
       retries: 20
       start_period: 10s
+    networks: [cqa_net]
+
+  audio-worker:
+    build:
+      context: ./backend/audio-worker
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      REDPANDA_BROKERS: ${REDPANDA_BROKERS}
+      CQA_AUDIO_CONSUMER_GROUP: ${CQA_AUDIO_CONSUMER_GROUP:-cqa-audio-worker-v1}
+      CQA_AUDIO_ALLOWED_HOSTS: ${CQA_AUDIO_ALLOWED_HOSTS:-ec88f21f1accecf38e20095a9fe175.a5.environment.api.powerplatform.com}
+      CQA_AUDIO_MAX_DOWNLOAD_BYTES: ${CQA_AUDIO_MAX_DOWNLOAD_BYTES:-104857600}
+      CQA_AUDIO_DOWNLOAD_TIMEOUT_SECONDS: ${CQA_AUDIO_DOWNLOAD_TIMEOUT_SECONDS:-30}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
     networks: [cqa_net]
 
 networks:

@@ -1,0 +1,13 @@
+confluent-kafka==2.6.1
+pymongo==4.10.1
+pydantic==2.10.6
+httpx==0.28.1
+soundfile==0.13.1
+librosa==0.10.2.post1
+numpy==2.0.2
+scipy==1.14.1
+webrtcvad-wheels==2.0.14
+fastapi==0.115.8
+uvicorn==0.34.0
+pytest==8.3.4
+

@@ -11,7 +11,7 @@ BACKEND_COMPOSE = $(COMPOSE) --env-file $(ENV_FILE) -p cqa-backend -f docker-com
 FRONTEND_COMPOSE = $(COMPOSE) --env-file $(ENV_FILE) -p cqa-frontend -f docker-compose.frontend.yml
 
 INFRA_SERVICES := mongodb redis redpanda redpanda-console
-BACKEND_SERVICES := api pipeline-worker
+BACKEND_SERVICES := api pipeline-worker audio-worker
 FRONTEND_SERVICES := web
 
 .PHONY: help init build up down restart status health logs infra-up backend-up frontend-up wait-infra wait-backend wait-frontend wait-services

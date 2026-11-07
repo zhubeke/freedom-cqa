@@ -8,6 +8,8 @@ import ConversationDetailHeader from "../../components/ConversationDetailHeader/
 import ConversationDetailSkeleton from "../../components/ConversationDetailSkeleton/ConversationDetailSkeleton.vue";
 import ConversationInfo from "../../components/ConversationInfo/ConversationInfo.vue";
 import ConversationTranscript from "../../components/ConversationTranscript/ConversationTranscript.vue";
+import EvaluationPanel from "../../components/EvaluationPanel/EvaluationPanel.vue";
+import ConversationMetadataPanel from "../../components/ConversationMetadataPanel/ConversationMetadataPanel.vue";
 import type { ConversationDetail } from "../../shared/types/conversation";
 import { useScrollToMessage } from "./composables/useScrollToMessage";
 
@@ -36,6 +38,12 @@ function goBack(): void {
   } else {
     void router.push({ name: "conversations" });
   }
+}
+
+async function navigateToEvidence(messageId: string): Promise<void> {
+  await router.replace({ query: { ...route.query, message: messageId } });
+  await nextTick();
+  scrollToMessage(messageId);
 }
 </script>
 
@@ -67,5 +75,7 @@ function goBack(): void {
       <ConversationInfo class="lg:col-start-2 lg:row-start-1" :conversation="conversationQuery.data.value" />
       <ConversationTranscript class="lg:col-start-1 lg:row-start-1" :conversation="conversationQuery.data.value" :highlighted-message-id="highlightedMessageId" />
     </div>
+    <EvaluationPanel :conversation-id="conversationId" @evidence="navigateToEvidence" />
+    <ConversationMetadataPanel :conversation="conversationQuery.data.value" />
   </div>
 </template>

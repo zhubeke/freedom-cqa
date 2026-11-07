@@ -1,6 +1,6 @@
 # Conversation Quality Analytics
 
-Runnable Step 1 foundation for CQA: a Vue 3 dashboard, Fastify API, MongoDB, Redis, Redpanda, and Redpanda Console. Authentication and the ingestion/evaluation pipeline are intentionally not part of this step.
+Conversation Quality Analytics with Vue 3, Fastify, MongoDB, Redis, Redpanda, and criterion-by-criterion Cloudflare LLM evaluation.
 
 ## Prerequisites
 
@@ -28,6 +28,30 @@ Then open:
 
 `make init` copies `.env.example` to `.env` without overwriting an existing file and creates the shared `cqa_net` Docker network. The example credentials are local-development defaults; change them before deploying anywhere else.
 
+Before running an evaluation, set `CLOUDFLARE_ACCOUNT_ID` and a newly rotated `CLOUDFLARE_API_TOKEN` in `.env`. The default Workers AI model is `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; it is configurable with `CLOUDFLARE_MODEL`. The originally selected `@cf/meta/llama-3.1-8b-instruct` was removed by Cloudflare and returns HTTP 410. Token verification alone does not verify inference access.
+
+Run a real inference probe before queueing an evaluation:
+
+```sh
+npm --prefix backend run llm:check
+```
+
+The probe performs model inference and validates the returned JSON. It exits nonzero with a safe category for missing configuration, HTTP 401/403/404/429, provider 5xx responses, timeouts, network failures, or malformed responses. It never prints the API token.
+
+### LLM gateway modes
+
+`CQA_LLM_PROVIDER=workers_ai` sends `POST /client/v4/accounts/{account}/ai/v1/chat/completions` to Cloudflare and reads `choices[0].message.content`. If `CQA_LLM_PROVIDER=custom_worker`, `CQA_LLM_ENDPOINT` is required. The custom Worker receives:
+
+```json
+{ "model": "configured-model", "messages": [{ "role": "system", "content": "..." }, { "role": "user", "content": "..." }] }
+```
+
+It must return the normalized contract below. The API token is sent as a Bearer token; the Worker URL and schema are never guessed.
+
+```json
+{ "response": "{...criterion JSON...}", "model_id": "actual-model-id", "usage": { "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0 } }
+```
+
 ## Operations
 
 ```sh
@@ -46,6 +70,9 @@ make help     # lists commands
 - `GET /health/live` — process liveness
 - `GET /health/ready` — dependency readiness; returns HTTP 503 if any dependency is unavailable
 - `GET /api/v1/system/status` — backend, MongoDB, Redis, and Redpanda status for the UI
+- `POST /api/v1/conversations/:id/evaluations` — queue one conversation evaluation
+- `GET /api/v1/evaluations/:id` — evaluation progress and criterion results
+- `GET /api/v1/conversations/:id/evaluations` — historical runs
 
 ## Repository layout
 

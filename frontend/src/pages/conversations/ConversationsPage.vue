@@ -9,8 +9,11 @@ import ConversationTabs from "../../components/ConversationTabs/ConversationTabs
 import ConversationPagination from "../../components/ConversationPagination/ConversationPagination.vue";
 import ImportConversationsButton from "../../components/ImportConversationsButton/ImportConversationsButton.vue";
 import ImportDialog from "../../components/ImportDialog/ImportDialog.vue";
+import BatchEvaluationButton from "../../components/BatchEvaluationButton/BatchEvaluationButton.vue";
+import BatchEvaluationDialog from "../../components/BatchEvaluationDialog/BatchEvaluationDialog.vue";
+import BatchProgress from "../../components/BatchProgress/BatchProgress.vue";
 import { visualAssets } from "../../assets";
-import { apiGet, apiUpload } from "../../api/client";
+import { ApiError, apiGet, apiUpload } from "../../api/client";
 import type {
   Conversation,
   ConversationListResponse,
@@ -18,6 +21,7 @@ import type {
   ConversationTab,
   ImportStatus
 } from "../../shared/types/conversation";
+import type { EvaluationBatch } from "../../shared/types/batch";
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +35,8 @@ const language = ref<ConversationLanguage>(validLanguage(initialLanguage) ? init
 const activeTab = ref<ConversationTab>(validTab(initialTab) ? initialTab : "all");
 const page = ref(Math.max(1, Number.parseInt(queryValue(route.query.page), 10) || 1));
 const dialogOpen = ref(false);
+const batchDialogOpen = ref(false);
+const activeBatchId = ref(window.localStorage.getItem("cqa-active-batch-id") ?? "");
 const importId = ref<string>();
 const queryClient = useQueryClient();
 let syncingRoute = false;
@@ -68,7 +74,13 @@ const listPath = computed(() => {
 const conversationsQuery = useQuery({
   queryKey: computed(() => ["conversations", listPath.value]),
   queryFn: ({ signal }) => apiGet<ConversationListResponse>(listPath.value, signal),
-  placeholderData: (previous) => previous
+  placeholderData: (previous) => previous,
+  retry: 1
+});
+const conversationsErrorTitle = computed(() => {
+  const error = conversationsQuery.error.value;
+  if (error instanceof ApiError && (error.kind === "network" || error.kind === "timeout")) return "Network failure";
+  return "API failure";
 });
 const conversations = computed<Conversation[]>(() => (conversationsQuery.data.value?.items ?? []).map((item) => ({
   dataset_group_id: item.dataset_group_id, conversation_id: item.conversation_id,
@@ -94,6 +106,10 @@ function closeDialog() {
   if (["completed", "failed"].includes(importStatus.data.value?.status ?? "")) importId.value = undefined;
   upload.reset();
 }
+function batchStarted(batch: EvaluationBatch) {
+  activeBatchId.value = batch.batch_id;
+  window.localStorage.setItem("cqa-active-batch-id", batch.batch_id);
+}
 </script>
 
 <template>
@@ -110,9 +126,14 @@ function closeDialog() {
           Find, review, and evaluate customer interactions in one focused workspace.
         </p>
         </div>
-        <ImportConversationsButton @click="dialogOpen = true" />
+        <div class="flex flex-wrap gap-3">
+          <BatchEvaluationButton @click="batchDialogOpen = true" />
+          <ImportConversationsButton @click="dialogOpen = true" />
+        </div>
       </div>
     </div>
+
+    <BatchProgress v-if="activeBatchId" :batch-id="activeBatchId" />
 
     <div class="overflow-hidden rounded-[1.75rem] bg-white">
       <div class="border-b border-line px-4 py-4 sm:px-6 sm:py-5">
@@ -130,8 +151,10 @@ function closeDialog() {
       <ConversationList
         :conversations="conversations"
         :has-active-filters="Boolean(searchQuery || language !== 'all' || activeTab !== 'all')"
-        :loading="conversationsQuery.isLoading.value || conversationsQuery.isFetching.value"
+        :loading="conversationsQuery.isLoading.value && !conversationsQuery.isError.value"
         :error="conversationsQuery.error.value?.message"
+        :error-title="conversationsErrorTitle"
+        @retry="conversationsQuery.refetch()"
       />
       <ConversationPagination
         :page="page"
@@ -148,5 +171,6 @@ function closeDialog() {
       @close="closeDialog"
       @import="upload.mutate"
     />
+    <BatchEvaluationDialog :open="batchDialogOpen" @close="batchDialogOpen = false" @started="batchStarted" />
   </section>
 </template>

@@ -6,6 +6,21 @@ import { publishPendingImports } from "../../modules/dataset-import/application/
 import { ConversationRepository } from "../../modules/conversation-ingestion/adapters/persistence/conversation-repository.js";
 import { ImportConsumer } from "../../modules/conversation-ingestion/adapters/events/import-consumer.js";
 import { CONVERSATION_INGESTED_TOPIC, DATASET_IMPORT_REQUESTED_TOPIC } from "../../modules/conversation-ingestion/adapters/events/topics.js";
+import { EvaluationRepository } from "../../modules/criterion-evaluation/adapters/persistence/evaluation-repository.js";
+import { EvaluationConsumer } from "../../modules/criterion-evaluation/adapters/events/evaluation-consumer.js";
+import { publishPendingEvaluations } from "../../modules/evaluation-orchestration/application/publish-pending-evaluations.js";
+import { CRITERION_COMPLETED_TOPIC, CRITERION_REQUESTED_TOPIC, EVALUATION_COMPLETED_TOPIC, EVALUATION_REQUESTED_TOPIC } from "../../modules/evaluation-orchestration/adapters/events/topics.js";
+import { BatchRepository } from "../../modules/batch-evaluation/adapters/persistence/batch-repository.js";
+import { BatchConsumer } from "../../modules/batch-evaluation/adapters/events/batch-consumer.js";
+import { BATCH_COMPLETED_TOPIC, BATCH_REQUESTED_TOPIC } from "../../modules/batch-evaluation/adapters/events/topics.js";
+import { publishPendingBatches, publishPendingBatchCompletions } from "../../modules/batch-evaluation/application/publish-pending-batches.js";
+import { publishPendingEvaluationCompletions } from "../../modules/evaluation-orchestration/application/publish-pending-completions.js";
+import { MetadataRepository } from "../../modules/conversation-metadata/adapters/persistence/metadata-repository.js";
+import { MetadataConsumer } from "../../modules/conversation-metadata/adapters/events/metadata-consumer.js";
+import { IngestionDispatchConsumer } from "../../modules/conversation-metadata/adapters/events/ingestion-dispatch-consumer.js";
+import { AUDIO_ANALYZED_TOPIC, AUDIO_REQUESTED_TOPIC, METADATA_COMPLETED_TOPIC, METADATA_REQUESTED_TOPIC } from "../../modules/conversation-metadata/adapters/events/topics.js";
+import { CloudflareGateway } from "../../modules/llm-gateway/adapters/cloudflare-gateway.js";
+import { publishPendingMetadataCompletions } from "../../modules/conversation-metadata/application/publish-pending.js";
 
 const config = loadConfig();
 const connections = createConnections(config);
@@ -14,12 +29,28 @@ await connections.redpanda.connect();
 const imports = new ImportRepository(connections.mongodb.db);
 const conversations = new ConversationRepository(connections.mongodb.db);
 await Promise.all([imports.ensureIndexes(), conversations.ensureIndexes()]);
+const evaluations = new EvaluationRepository(connections.mongodb.db);
+await evaluations.ensureIndexes();
+const batches = new BatchRepository(connections.mongodb.db);
+await batches.ensureIndexes();
+const metadata = new MetadataRepository(connections.mongodb.db);
+await metadata.ensureIndexes();
 
 const admin = connections.redpanda.kafka.admin();
 await admin.connect();
 await admin.createTopics({ waitForLeaders: true, topics: [
   { topic: DATASET_IMPORT_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 },
-  { topic: CONVERSATION_INGESTED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  { topic: CONVERSATION_INGESTED_TOPIC, numPartitions: 1, replicationFactor: 1 },
+  { topic: EVALUATION_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 },
+  { topic: CRITERION_REQUESTED_TOPIC, numPartitions: Math.max(1, config.llm.maxConcurrency), replicationFactor: 1 },
+  { topic: CRITERION_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 },
+  { topic: EVALUATION_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 },
+  { topic: BATCH_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 },
+  { topic: BATCH_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: METADATA_REQUESTED_TOPIC, numPartitions: Math.max(1, Math.min(4, config.llm.maxConcurrency)), replicationFactor: 1 }
+  ,{ topic: METADATA_COMPLETED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: AUDIO_REQUESTED_TOPIC, numPartitions: 1, replicationFactor: 1 }
+  ,{ topic: AUDIO_ANALYZED_TOPIC, numPartitions: 1, replicationFactor: 1 }
 ] });
 await admin.disconnect();
 
@@ -32,10 +63,37 @@ const consumer = new ImportConsumer(
   conversations
 );
 await consumer.start();
+const evaluationConsumer = new EvaluationConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-evaluations`, retry: { retries: 8 } }),
+  producer,
+  connections.mongodb.db,
+  config
+);
+await evaluationConsumer.start();
+const batchConsumer = new BatchConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-batches`, retry: { retries: 8 } }),
+  producer,
+  connections.mongodb.db,
+  config
+);
+await batchConsumer.start();
+const dispatchConsumer = new IngestionDispatchConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-metadata-dispatch`, retry: { retries: 8 } }),
+  producer,
+  metadata
+);
+await dispatchConsumer.start();
+const metadataConsumer = new MetadataConsumer(
+  connections.redpanda.kafka.consumer({ groupId: `${config.kafka.consumerGroupId}-metadata`, retry: { retries: 8 } }),
+  producer,
+  metadata,
+  new CloudflareGateway(config.llm)
+);
+await metadataConsumer.start();
 
 let ready = true;
 const recovery = async () => {
-  try { await publishPendingImports(imports, producer); ready = true; }
+  try { await Promise.all([publishPendingImports(imports, producer), publishPendingEvaluations(evaluations, producer), publishPendingEvaluationCompletions(evaluations, producer), publishPendingBatches(batches, producer), publishPendingBatchCompletions(batches, producer), publishPendingMetadataCompletions(metadata, producer)]); ready = true; }
   catch (error) { ready = false; console.error("Pending publication recovery failed", error); }
 };
 await recovery();
@@ -54,7 +112,7 @@ const shutdown = async () => {
   ready = false;
   clearInterval(recoveryTimer);
   healthServer.close();
-  await Promise.allSettled([consumer.close(), producer.disconnect(), connections.mongodb.close(), connections.redpanda.close()]);
+  await Promise.allSettled([consumer.close(), evaluationConsumer.close(), batchConsumer.close(), dispatchConsumer.close(), metadataConsumer.close(), producer.disconnect(), connections.mongodb.close(), connections.redpanda.close()]);
   process.exit(0);
 };
 process.on("SIGINT", () => void shutdown());

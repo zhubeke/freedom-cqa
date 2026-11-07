@@ -38,7 +38,7 @@ const pending = computed(() => request.isPending.value || ["queued", "processing
     <div v-if="actionQuery.data.value?.override_reason" class="mt-4 flex gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><ShieldAlert :size="18" class="shrink-0" />{{ actionQuery.data.value.override_reason }}</div>
     <div v-if="actionQuery.data.value?.evidence_message_ids?.length" class="mt-5">
       <p class="text-xs font-semibold uppercase text-muted">Supporting evidence</p>
-      <div class="mt-2 flex flex-wrap gap-2"><button v-for="id in actionQuery.data.value.evidence_message_ids" :key="id" type="button" class="rounded-lg border border-line px-3 py-1.5 text-xs text-primary hover:bg-primary-soft" @click="emit('evidence', id)">{{ id }}</button></div>
+      <div class="mt-2 flex flex-wrap gap-2"><button v-for="(id, index) in actionQuery.data.value.evidence_message_ids" :key="id" type="button" class="rounded-lg border border-line px-3 py-1.5 text-xs text-primary hover:bg-primary-soft" @click="emit('evidence', id)">Evidence {{ index + 1 }}</button></div>
     </div>
     <div v-if="label" class="mt-6 border-t border-line pt-5">
       <div class="flex items-center gap-2 text-sm font-semibold text-ink"><CheckCircle2 :size="18" /> Verify training label</div>

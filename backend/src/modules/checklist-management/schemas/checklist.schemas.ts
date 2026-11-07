@@ -39,6 +39,13 @@ export const CreateVersionBodySchema = Type.Object({
   sections: Type.Array(ChecklistSectionSchema, { minItems: 1 }),
   criteria: Type.Array(ChecklistCriterionSchema, { minItems: 1 })
 }, { additionalProperties: false });
+export const UpdateChecklistBodySchema = Type.Object({
+  name: NonEmptyString,
+  description: Type.String(),
+  expected_active_version_id: NonEmptyString,
+  sections: Type.Array(ChecklistSectionSchema, { minItems: 1 }),
+  criteria: Type.Array(ChecklistCriterionSchema, { minItems: 1 })
+}, { additionalProperties: false });
 export const ActivateVersionBodySchema = Type.Object({
   version_id: NonEmptyString,
   expected_active_version_id: Type.Union([Type.String(), Type.Null()])
@@ -49,3 +56,4 @@ export const VersionParamsSchema = Type.Object({ id: NonEmptyString, versionId: 
 export type CreateChecklistBody = Static<typeof CreateChecklistBodySchema>;
 export type CreateVersionBody = Static<typeof CreateVersionBodySchema>;
 export type ActivateVersionBody = Static<typeof ActivateVersionBodySchema>;
+export type UpdateChecklistBody = Static<typeof UpdateChecklistBodySchema>;

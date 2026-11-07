@@ -122,6 +122,9 @@ export class MongoChecklistRepository implements ChecklistRepository {
       await this.checklists.updateOne({ _id: input.checklistId }, { $set: { name: input.name, description: input.description, updated_at: now } });
     } catch (error) {
       await this.versions.deleteOne({ _id: version._id });
+      if (error instanceof MongoServerError && error.code === 11000) {
+        throw new ChecklistError("A checklist with this name already exists", 409, "CHECKLIST_ALREADY_EXISTS");
+      }
       throw error;
     }
     return mapVersion(version);
@@ -141,5 +144,48 @@ export class MongoChecklistRepository implements ChecklistRepository {
       throw new ChecklistError("The active version changed concurrently; reload and try again", 409, "CONCURRENT_CHANGE");
     }
     return mapChecklist(updated);
+  }
+
+  async updateChecklist(input: { checklistId: string; expectedActiveVersionId: string; name: string; description: string; configuration: ChecklistConfiguration }): Promise<{ checklist: ChecklistRecord; version: ChecklistVersionRecord }> {
+    const [checklist, latest] = await Promise.all([
+      this.checklists.findOne({ _id: input.checklistId }),
+      this.versions.find({ checklist_id: input.checklistId }).sort({ version_number: -1 }).limit(1).next()
+    ]);
+    if (!checklist) throw new ChecklistError("Checklist not found", 404, "CHECKLIST_NOT_FOUND");
+    if (checklist.active_version_id !== input.expectedActiveVersionId) {
+      throw new ChecklistError("The checklist changed concurrently; reload and save again", 409, "CONCURRENT_CHANGE");
+    }
+    const now = new Date();
+    const version: ChecklistVersionDocument = {
+      _id: randomUUID(), checklist_id: input.checklistId, version_number: (latest?.version_number ?? 0) + 1,
+      created_at: now, created_from_version_id: checklist.active_version_id,
+      ...cloneConfiguration(input.configuration), total_scoring_weight: validateConfiguration(input.configuration), schema_version: 1
+    };
+    try { await this.versions.insertOne(version); }
+    catch (error) {
+      if (error instanceof MongoServerError && error.code === 11000) throw new ChecklistError("The checklist changed concurrently; reload and save again", 409, "CONCURRENT_CHANGE");
+      throw error;
+    }
+    try {
+      const updated = await this.checklists.findOneAndUpdate(
+        { _id: input.checklistId, active_version_id: input.expectedActiveVersionId },
+        { $set: { name: input.name, description: input.description, active_version_id: version._id, updated_at: now } },
+        { returnDocument: "after" }
+      );
+      if (!updated) throw new ChecklistError("The checklist changed concurrently; reload and save again", 409, "CONCURRENT_CHANGE");
+      return { checklist: mapChecklist(updated), version: mapVersion(version) };
+    } catch (error) {
+      await this.versions.deleteOne({ _id: version._id });
+      if (error instanceof MongoServerError && error.code === 11000) {
+        throw new ChecklistError("A checklist with this name already exists", 409, "CHECKLIST_ALREADY_EXISTS");
+      }
+      throw error;
+    }
+  }
+
+  async deleteChecklist(id: string): Promise<boolean> {
+    // Keep immutable version documents: completed evaluations reference them as
+    // historical snapshots even after the editable checklist is removed.
+    return (await this.checklists.deleteOne({ _id: id })).deletedCount === 1;
   }
 }

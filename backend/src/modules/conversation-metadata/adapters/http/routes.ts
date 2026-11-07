@@ -66,7 +66,6 @@ export async function registerMetadataRoutes(app: FastifyInstance, db: Db, produ
     const event = makeMetadataEvent("cqa.metadata.requested", groupId, request.params.id, `manual:${randomUUID()}`);
     await repository.queue(groupId, request.params.id, METADATA_EXTRACTOR_VERSION, event.event_id, Boolean(conversation.has_audio));
     await publishMetadataRequested(producer, event);
-    if (conversation.has_audio) await publishAudioRequested(producer, { ...event, event_id: `audio:${event.event_id}` });
     return reply.code(202).send({ status: "queued", dataset_group_id: groupId, conversation_id: request.params.id, extractor_version: METADATA_EXTRACTOR_VERSION });
   });
 
@@ -78,7 +77,6 @@ export async function registerMetadataRoutes(app: FastifyInstance, db: Db, produ
         const event = makeMetadataEvent("cqa.metadata.requested", request.params.groupId, conversation.conversation_id, `backfill:${METADATA_EXTRACTOR_VERSION}:${request.params.groupId}:${conversation.conversation_id}`);
         await repository.queue(request.params.groupId, conversation.conversation_id, METADATA_EXTRACTOR_VERSION, event.event_id, conversation.has_audio);
         await publishMetadataRequested(producer, event);
-        if (conversation.has_audio) await publishAudioRequested(producer, { ...event, event_id: `audio:${event.event_id}` });
       }));
     }
     return reply.code(202).send({ status: "queued", dataset_group_id: request.params.groupId, queued_count: conversations.length, extractor_version: METADATA_EXTRACTOR_VERSION });

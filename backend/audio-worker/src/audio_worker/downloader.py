@@ -10,14 +10,17 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .config import Settings
+from .models import AudioErrorCode, AudioPipelineError
 
 
-class AudioDownloadError(RuntimeError):
-    pass
+class AudioDownloadError(AudioPipelineError):
+    def __init__(self, message: str, code: AudioErrorCode = AudioErrorCode.DOWNLOAD_FAILED, retryable: bool = False):
+        super().__init__(code, message, retryable)
 
 
 class _ExpiredMediaUrl(AudioDownloadError):
-    pass
+    def __init__(self, message: str):
+        super().__init__(message, AudioErrorCode.URL_EXPIRED)
 
 
 def _validate_url(url: str, settings: Settings) -> None:
@@ -73,7 +76,7 @@ def _write_audio(response: httpx.Response, destination: Path, settings: Settings
                     continue
                 size += len(chunk)
                 if size > settings.max_download_bytes:
-                    raise AudioDownloadError("Audio download exceeds the configured size limit")
+                    raise AudioDownloadError("Audio download exceeds the configured size limit", AudioErrorCode.TOO_LARGE)
                 if len(prefix) < 512:
                     prefix.extend(chunk[: 512 - len(prefix)])
                 output.write(chunk)
@@ -104,7 +107,8 @@ def _download_from_source(source_url: str, destination: Path, settings: Settings
             try:
                 response.raise_for_status()
             except httpx.HTTPStatusError as exc:
-                raise AudioDownloadError(f"Audio source returned HTTP {response.status_code}") from exc
+                code = AudioErrorCode.ACCESS_DENIED if response.status_code in {401, 403} else AudioErrorCode.URL_EXPIRED if response.status_code in {404, 410} else AudioErrorCode.DOWNLOAD_FAILED
+                raise AudioDownloadError(f"Audio source returned HTTP {response.status_code}", code, response.status_code >= 500) from exc
             content_type = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
             if content_type in {"text/html", "application/xhtml+xml"}:
                 if extracted_media:
@@ -132,17 +136,17 @@ def _download_from_source(source_url: str, destination: Path, settings: Settings
 def download_audio(url: str, destination: Path, settings: Settings, *, transport: httpx.BaseTransport | None = None) -> None:
     """Resolve the original URL on every retry so temporary media links are never reused."""
     _validate_url(url, settings)
-    timeout = httpx.Timeout(settings.download_timeout_seconds)
+    timeout = httpx.Timeout(settings.request_timeout_seconds)
     last_error: AudioDownloadError | None = None
     with httpx.Client(timeout=timeout, follow_redirects=False, transport=transport) as client:
-        for attempt in range(settings.media_resolution_attempts):
+        for attempt in range(settings.max_retries + 1):
             destination.unlink(missing_ok=True)
             try:
                 _download_from_source(url, destination, settings, client)
                 return
             except _ExpiredMediaUrl as exc:
                 last_error = exc
-                if attempt + 1 == settings.media_resolution_attempts:
+                if attempt == settings.max_retries:
                     break
     raise AudioDownloadError("Audio media URL remained unavailable after bounded re-resolution") from last_error
 

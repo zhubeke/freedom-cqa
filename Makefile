@@ -11,10 +11,10 @@ BACKEND_COMPOSE = $(COMPOSE) --env-file $(ENV_FILE) -p cqa-backend -f docker-com
 FRONTEND_COMPOSE = $(COMPOSE) --env-file $(ENV_FILE) -p cqa-frontend -f docker-compose.frontend.yml
 
 INFRA_SERVICES := mongodb redis redpanda redpanda-console
-BACKEND_SERVICES := api pipeline-worker audio-worker
+BACKEND_SERVICES := api pipeline-worker
 FRONTEND_SERVICES := web
 
-.PHONY: help init build up down restart status health logs ai-status infra-up backend-up frontend-up wait-infra wait-backend wait-frontend wait-services
+.PHONY: help init build up down restart status health logs ai-status infra-up backend-up frontend-up wait-infra wait-backend wait-frontend wait-services audio-build audio-up audio-down audio-logs audio-health audio-test audio-model-check audio-model-warmup
 
 help: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "CQA commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -85,6 +85,31 @@ logs: ## Stream logs from every Compose project
 
 ai-status: ## Validate configured Cloudflare tokens and Workers AI model access without inference
 	@cd backend && npm run ai:status
+
+audio-build: ## Build the CPU audio worker image
+	$(BACKEND_COMPOSE) build audio-worker
+
+audio-up: ## Start only the audio worker
+	$(BACKEND_COMPOSE) up -d audio-worker
+
+audio-down: ## Stop only the audio worker
+	$(BACKEND_COMPOSE) stop audio-worker
+
+audio-logs: ## Stream audio worker logs
+	$(BACKEND_COMPOSE) logs -f --tail=100 audio-worker
+
+audio-health: ## Check worker dependencies and model readiness separately
+	@$(BACKEND_COMPOSE) exec -T audio-worker python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8080/health/ready', timeout=5).read().decode())"
+	@$(BACKEND_COMPOSE) exec -T audio-worker python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8080/health/model', timeout=5).read().decode())"
+
+audio-test: ## Run audio unit tests without loading the real model
+	$(BACKEND_COMPOSE) run --rm --no-deps audio-worker pytest -m "not real_model and not integration"
+
+audio-model-check: ## Verify model configuration and cached weights without inference
+	$(BACKEND_COMPOSE) run --rm --no-deps audio-worker python -m audio_worker.model_cli check
+
+audio-model-warmup: ## Explicitly download and load Community-1 after HF access is configured
+	$(BACKEND_COMPOSE) run --rm --no-deps audio-worker python -m audio_worker.model_cli warmup
 
 infra-up:
 	$(INFRA_COMPOSE) up -d

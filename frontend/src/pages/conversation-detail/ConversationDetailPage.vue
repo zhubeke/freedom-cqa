@@ -12,6 +12,7 @@ import EvaluationPanel from "../../components/EvaluationPanel/EvaluationPanel.vu
 import ConversationMetadataPanel from "../../components/ConversationMetadataPanel/ConversationMetadataPanel.vue";
 import ConversationSentimentTimeline from "../../components/ConversationSentimentTimeline/ConversationSentimentTimeline.vue";
 import RecommendedActionCard from "../../components/RecommendedActionCard/RecommendedActionCard.vue";
+import AudioIntelligencePanel from "../../components/AudioIntelligencePanel/AudioIntelligencePanel.vue";
 import type { ConversationDetail } from "../../shared/types/conversation";
 import { useScrollToMessage } from "./composables/useScrollToMessage";
 
@@ -36,7 +37,8 @@ watch([() => conversationQuery.data.value, requestedMessage], async ([conversati
 function goBack(): void {
   const from = typeof route.query.from === "string" ? route.query.from : "";
   if (from.startsWith("/conversations") && !from.startsWith("/conversations/")) {
-    void router.push(from);
+    const target = router.resolve(from);
+    void router.push({ path: target.path, query: target.query, hash: target.hash });
   } else {
     void router.push({ name: "conversations" });
   }
@@ -79,6 +81,7 @@ async function navigateToEvidence(messageId: string): Promise<void> {
     </div>
     <EvaluationPanel :conversation-id="conversationId" @evidence="navigateToEvidence" />
     <RecommendedActionCard :conversation-id="conversationId" @evidence="navigateToEvidence" />
+    <AudioIntelligencePanel :conversation-id="conversationId" :dataset-group-id="conversationQuery.data.value.dataset_group_id" :has-audio="conversationQuery.data.value.has_audio" />
     <ConversationSentimentTimeline :conversation="conversationQuery.data.value" @message="navigateToEvidence" />
     <ConversationMetadataPanel :conversation="conversationQuery.data.value" />
   </div>

@@ -4,7 +4,6 @@ import math
 
 import librosa
 import numpy as np
-import webrtcvad
 
 
 def _dbfs(value: float) -> float | None:
@@ -14,15 +13,9 @@ def _dbfs(value: float) -> float | None:
 def analyze(samples: np.ndarray, sample_rate: int) -> dict[str, float | int | None | list[str]]:
     mono = np.mean(samples, axis=1).astype(np.float32)
     duration = len(mono) / sample_rate
-    vad_rate = 16000
-    vad_audio = librosa.resample(mono, orig_sr=sample_rate, target_sr=vad_rate) if sample_rate != vad_rate else mono
-    pcm = (np.clip(vad_audio, -1, 1) * 32767).astype("<i2")
-    frame_samples = int(vad_rate * 0.03)
-    vad = webrtcvad.Vad(2)
-    flags: list[bool] = []
-    for start in range(0, len(pcm) - frame_samples + 1, frame_samples):
-        flags.append(vad.is_speech(pcm[start:start + frame_samples].tobytes(), vad_rate))
-    frame_seconds = frame_samples / vad_rate
+    frame_samples = max(1, int(sample_rate * 0.03))
+    frame_seconds = frame_samples / sample_rate
+    flags = [float(np.sqrt(np.mean(np.square(mono[start:start+frame_samples], dtype=np.float64)))) > 1e-4 for start in range(0, len(mono)-frame_samples+1, frame_samples)]
     speech_duration = sum(flags) * frame_seconds
     silence_duration = max(0.0, duration - speech_duration)
     speech_segments = sum(flag and (index == 0 or not flags[index - 1]) for index, flag in enumerate(flags))

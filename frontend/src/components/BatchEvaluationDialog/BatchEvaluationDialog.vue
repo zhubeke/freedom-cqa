@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useMutation, useQuery } from "@tanstack/vue-query";
 import { X } from "lucide-vue-next";
-import { listChecklists, listChecklistVersions } from "../../api/checklists";
+import { listChecklists } from "../../api/checklists";
 import { batchKeys, listBatchOptions, startBatch } from "../../api/batches";
 import type { EvaluationBatch } from "../../shared/types/batch";
 
@@ -11,18 +11,16 @@ const emit = defineEmits<{ close: []; started: [batch: EvaluationBatch] }>();
 const datasetId = ref(""); const checklistId = ref(""); const versionId = ref(""); const mode = ref<"smoke" | "full">("smoke");
 const options = useQuery({ queryKey: batchKeys.options, queryFn: ({ signal }) => listBatchOptions(signal), enabled: computed(() => props.open) });
 const checklists = useQuery({ queryKey: ["checklists"], queryFn: ({ signal }) => listChecklists(signal), enabled: computed(() => props.open) });
-const versions = useQuery({ queryKey: computed(() => ["checklists", checklistId.value, "versions"]), queryFn: ({ signal }) => listChecklistVersions(checklistId.value, signal), enabled: computed(() => props.open && Boolean(checklistId.value)) });
 watch(() => options.data.value, (value) => { if (!datasetId.value && value?.datasets[0]) datasetId.value = value.datasets[0].dataset_group_id; });
-watch(() => checklists.data.value, (value) => { if (!checklistId.value && value?.[0]) checklistId.value = value[0].id; });
-watch(() => versions.data.value, (value) => {
-  const checklist = checklists.data.value?.find((item) => item.id === checklistId.value);
-  versionId.value = value?.find((item) => item.id === checklist?.active_version_id)?.id ?? value?.[0]?.id ?? "";
+watch(() => checklists.data.value, (value) => {
+  if (value?.length && !value.some((item) => item.id === checklistId.value)) checklistId.value = value[0]!.id;
+  if (!value?.length) checklistId.value = "";
 });
-watch(checklistId, () => { versionId.value = ""; });
+watch([checklistId, () => checklists.data.value], ([id, items]) => { versionId.value = items?.find((item) => item.id === id)?.active_version_id ?? ""; }, { immediate: true });
 const dataset = computed(() => options.data.value?.datasets.find((item) => item.dataset_group_id === datasetId.value));
-const selectedVersion = computed(() => versions.data.value?.find((item) => item.id === versionId.value));
+const selectedChecklist = computed(() => checklists.data.value?.find((item) => item.id === checklistId.value));
 const conversationCount = computed(() => mode.value === "smoke" ? Math.min(3, dataset.value?.conversation_count ?? 0) : dataset.value?.conversation_count ?? 0);
-const requestCount = computed(() => conversationCount.value * (selectedVersion.value?.criteria.filter((item) => item.enabled).length ?? 8));
+const requestCount = computed(() => conversationCount.value * (selectedChecklist.value?.criterion_count ?? 0));
 const mutation = useMutation({
   mutationFn: () => startBatch({ dataset_group_id: datasetId.value, checklist_version_id: versionId.value, ...(mode.value === "smoke" ? { max_conversations: 3 as const } : {}) }),
   onSuccess: (batch) => { emit("started", batch); emit("close"); }
@@ -47,11 +45,7 @@ const mutation = useMutation({
             <option v-for="item in checklists.data.value" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </label>
-        <label class="text-sm font-semibold text-ink sm:col-span-2">Version
-          <select v-model="versionId" class="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 font-normal">
-            <option v-for="item in versions.data.value" :key="item.id" :value="item.id">Version {{ item.version_number }}</option>
-          </select>
-        </label>
+        <p class="text-sm text-muted sm:col-span-2">The selected checklist’s current configuration will be used.</p>
       </div>
       <fieldset class="mt-5"><legend class="text-sm font-semibold text-ink">Execution size</legend>
         <div class="mt-2 grid gap-3 sm:grid-cols-2">

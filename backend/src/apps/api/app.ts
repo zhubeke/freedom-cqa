@@ -14,6 +14,7 @@ import { registerEvaluationRoutes } from "../../modules/evaluation-orchestration
 import { registerBatchRoutes } from "../../modules/batch-evaluation/adapters/http/routes.js";
 import { registerMetadataRoutes } from "../../modules/conversation-metadata/adapters/http/routes.js";
 import { registerClassificationRoutes } from "../../modules/action-classification/adapters/http/routes.js";
+import { registerAudioIntelligenceRoutes } from "../../modules/audio-intelligence/adapters/http/routes.js";
 
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
@@ -46,6 +47,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await registerBatchRoutes(app, connections.mongodb.db, producer, config);
   await registerMetadataRoutes(app, connections.mongodb.db, producer);
   await registerClassificationRoutes(app, connections.mongodb.db, producer, config);
+  await registerAudioIntelligenceRoutes(app, connections.mongodb.db, producer);
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([

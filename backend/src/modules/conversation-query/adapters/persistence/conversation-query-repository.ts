@@ -29,8 +29,14 @@ export class ConversationQueryRepository {
         { $group: { _id: { dataset_group_id: "$dataset_group_id", conversation_id: "$conversation_id" }, action: { $first: "$final_action" } } },
         { $match: { action: options.action } }
       ]).toArray();
-      filter.$or = latest.map((item) => ({ dataset_group_id: item._id.dataset_group_id, conversation_id: item._id.conversation_id }));
-      if (!latest.length) filter.conversation_id = "__no_matching_conversation__";
+      const matchingIdentities = latest.map((item) => ({
+        dataset_group_id: item._id.dataset_group_id,
+        conversation_id: item._id.conversation_id
+      }));
+      // MongoDB rejects `$or: []`. An empty `$in` is valid and deliberately
+      // produces an empty result without overwriting a combined search filter.
+      if (matchingIdentities.length) filter.$or = matchingIdentities;
+      else filter.$and = [{ conversation_id: { $in: [] } }];
     }
     const collection = this.db.collection("conversations");
     const [items, total] = await Promise.all([

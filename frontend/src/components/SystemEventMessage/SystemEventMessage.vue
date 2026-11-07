@@ -16,6 +16,5 @@ defineProps<{ message: TranscriptEntry; highlighted?: boolean }>();
       <Info class="mt-0.5 shrink-0" :size="14" aria-hidden="true" />
       <span><strong class="font-semibold text-ink/70">System · {{ message.timestamp }}</strong><br />{{ message.text }}</span>
     </div>
-    <p class="mt-1 text-[0.65rem] text-muted/70">{{ message.message_id }}</p>
   </div>
 </template>

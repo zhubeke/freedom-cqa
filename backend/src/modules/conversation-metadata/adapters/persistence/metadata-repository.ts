@@ -28,10 +28,6 @@ export class MetadataRepository {
       { unique: true, name: "metadata_version_unique" }
     );
     await this.collection().createIndex({ completion_publication_status: 1 });
-    await this.db.collection("audio_metrics").createIndex(
-      { dataset_group_id: 1, conversation_id: 1, processor_version: 1 },
-      { unique: true, name: "audio_metrics_version_unique" }
-    );
   }
 
   async findConversation(datasetGroupId: string, conversationId: string): Promise<NormalizedConversation | null> {
@@ -109,7 +105,7 @@ export class MetadataRepository {
   async audioMetrics(datasetGroupId: string | undefined, conversationId: string) {
     return this.db.collection("audio_metrics").findOne(
       { conversation_id: conversationId, ...(datasetGroupId ? { dataset_group_id: datasetGroupId } : {}) },
-      { sort: { processed_at: -1 }, projection: { _id: 0 } }
+      { sort: { processing_completed_at: -1 }, projection: { _id: 0 } }
     );
   }
 

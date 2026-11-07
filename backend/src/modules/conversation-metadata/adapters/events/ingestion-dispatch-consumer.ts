@@ -1,6 +1,6 @@
 import type { Consumer, EachMessagePayload, Producer } from "kafkajs";
 import { CONVERSATION_INGESTED_TOPIC } from "../../../conversation-ingestion/adapters/events/topics.js";
-import { makeMetadataEvent, publishAudioRequested, publishMetadataRequested } from "../../application/events.js";
+import { makeMetadataEvent, publishMetadataRequested } from "../../application/events.js";
 import type { MetadataRepository } from "../persistence/metadata-repository.js";
 
 interface IngestedEvent { event_id: string; dataset_group_id: string; conversation_id: string }
@@ -21,7 +21,6 @@ export class IngestionDispatchConsumer {
     const event = makeMetadataEvent("cqa.metadata.requested", ingested.dataset_group_id, ingested.conversation_id, `metadata:${ingested.event_id}`);
     await this.repository.queue(event.dataset_group_id, event.conversation_id, event.extractor_version, event.event_id, conversation.has_audio);
     await publishMetadataRequested(this.producer, event);
-    if (conversation.has_audio) await publishAudioRequested(this.producer, { ...event, event_id: `audio:${ingested.event_id}` });
   }
   close() { return this.consumer.disconnect(); }
 }

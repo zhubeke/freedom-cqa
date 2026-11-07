@@ -36,11 +36,9 @@ const readableTimestamp = computed(() => {
         ]"
       >
         <p class="whitespace-pre-wrap break-words text-sm leading-6 text-ink">{{ message.text }}</p>
-        <div class="mt-2 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 text-[0.68rem] text-muted">
+        <div class="mt-2 text-[0.68rem] text-muted">
           <time :datetime="message.timestamp">{{ readableTimestamp }}</time>
-          <span class="break-all opacity-75">{{ message.message_id }}</span>
         </div>
-        <p v-if="voiceCall && readableTimestamp !== message.timestamp" class="mt-1 break-all text-[0.64rem] text-muted/75">Original: {{ message.timestamp }}</p>
       </div>
     </div>
   </article>

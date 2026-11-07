@@ -31,6 +31,17 @@ export function extractActionFeatures(input: { metadata?: AnyDocument | null; ev
   const sentiment = input.metadata?.sentiment_trajectory; const criteria = input.criteria ?? [];
   const unresolved = semantic?.customer_intent?.unresolved_questions;
   const severeCriterion = criteria.find((item) => item.criterion_id === "freedom-criterion-08");
+  const recording = input.audio?.recording_metrics ?? input.audio ?? {};
+  const speakers = Array.isArray(input.audio?.speaker_metrics) ? input.audio.speaker_metrics : [];
+  const role = (name: string) => speakers.filter((item: AnyDocument) => item.inferred_role === name);
+  const roleSpeakingRatio = (name: string): number | null => {
+    const values = role(name).map((item: AnyDocument) => item.speaking_ratio).filter((item: unknown): item is number => typeof item === "number");
+    return values.length ? values.reduce((sum: number, item: number) => sum + item, 0) : null;
+  };
+  const roleRms = (name: string): number | null => {
+    const values = role(name).map((item: AnyDocument) => item.rms_dbfs).filter((item: unknown): item is number => typeof item === "number");
+    return values.length ? values.reduce((sum: number, item: number) => sum + item, 0) / values.length : null;
+  };
   return normalizeMissingFeatures({
     duration_seconds: value(deterministic?.conversation?.duration_seconds),
     client_turn_count: deterministic?.messages_and_turns?.client_turn_count ?? null,
@@ -61,9 +72,19 @@ export function extractActionFeatures(input: { metadata?: AnyDocument | null; ev
     client_average_sentiment: typeof sentiment?.average_client_sentiment_score === "number" ? sentiment.average_client_sentiment_score : (typeof semantic?.customer_sentiment?.score === "number" ? semantic.customer_sentiment.score : null),
     client_negative_message_count: typeof sentiment?.negative_client_message_count === "number" ? sentiment.negative_client_message_count : null,
     sentiment_recovery_detected: Array.isArray(sentiment?.recovery_points) ? sentiment.recovery_points.length > 0 : null,
-    silence_ratio: typeof input.audio?.silence_ratio === "number" ? input.audio.silence_ratio : null,
-    longest_silence_seconds: typeof input.audio?.longest_silence_seconds === "number" ? input.audio.longest_silence_seconds : null,
-    audio_loudness_variability: typeof input.audio?.loudness_variability === "number" ? input.audio.loudness_variability : null
+    silence_ratio: typeof recording.silence_ratio === "number" ? recording.silence_ratio : null,
+    longest_silence_seconds: typeof recording.longest_silence_seconds === "number" ? recording.longest_silence_seconds : null,
+    audio_loudness_variability: typeof recording.loudness_variability === "number" ? recording.loudness_variability : null,
+    audio_speech_ratio: typeof recording.speech_ratio === "number" ? recording.speech_ratio : null,
+    audio_silence_ratio: typeof recording.silence_ratio === "number" ? recording.silence_ratio : null,
+    audio_overlap_ratio: typeof recording.overlap_ratio === "number" ? recording.overlap_ratio : null,
+    audio_detected_speaker_count: typeof recording.detected_speaker_count === "number" ? recording.detected_speaker_count : null,
+    audio_operator_speaking_ratio: roleSpeakingRatio("operator"), audio_client_speaking_ratio: roleSpeakingRatio("client"),
+    audio_interruption_count_estimate: typeof recording.interruption_count_estimate === "number" ? recording.interruption_count_estimate : null,
+    audio_operator_rms_dbfs: roleRms("operator"), audio_client_rms_dbfs: roleRms("client"),
+    audio_longest_silence_seconds: typeof recording.longest_silence_seconds === "number" ? recording.longest_silence_seconds : null,
+    audio_alignment_confidence: typeof input.audio?.quality_indicators?.alignment_confidence === "number" ? input.audio.quality_indicators.alignment_confidence : null,
+    audio_features_available: input.audio?.status === "completed" || input.audio?.status === "partial"
   });
 }
 

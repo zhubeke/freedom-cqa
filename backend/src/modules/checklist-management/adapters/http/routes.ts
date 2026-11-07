@@ -6,11 +6,13 @@ import { createChecklistVersion } from "../../application/create-checklist-versi
 import { getChecklist, getChecklistVersion } from "../../application/get-checklist.js";
 import { listChecklistVersions } from "../../application/list-checklist-versions.js";
 import { listChecklists } from "../../application/list-checklists.js";
+import { updateChecklist } from "../../application/update-checklist.js";
+import { deleteChecklist } from "../../application/delete-checklist.js";
 import { ChecklistError } from "../../domain/checklist.types.js";
 import { MongoChecklistRepository } from "../persistence/checklist-repository.js";
 import {
-  ActivateVersionBodySchema, CreateChecklistBodySchema, CreateVersionBodySchema, IdParamsSchema, VersionParamsSchema,
-  type ActivateVersionBody, type CreateChecklistBody, type CreateVersionBody
+  ActivateVersionBodySchema, CreateChecklistBodySchema, CreateVersionBodySchema, IdParamsSchema, UpdateChecklistBodySchema, VersionParamsSchema,
+  type ActivateVersionBody, type CreateChecklistBody, type CreateVersionBody, type UpdateChecklistBody
 } from "../../schemas/checklist.schemas.js";
 
 function sendError(reply: FastifyReply, error: unknown) {
@@ -32,6 +34,21 @@ export async function registerChecklistManagementRoutes(app: FastifyInstance, db
 
   app.get<{ Params: { id: string } }>("/api/v1/checklists/:id", { schema: { params: IdParamsSchema } }, async (request, reply) => {
     try { return await getChecklist(repository, request.params.id); }
+    catch (error) { return sendError(reply, error); }
+  });
+
+  app.put<{ Params: { id: string }; Body: UpdateChecklistBody }>("/api/v1/checklists/:id", { schema: { params: IdParamsSchema, body: UpdateChecklistBodySchema } }, async (request, reply) => {
+    try {
+      const { name, description, expected_active_version_id, sections, criteria } = request.body;
+      return await updateChecklist(repository, {
+        checklistId: request.params.id, expectedActiveVersionId: expected_active_version_id,
+        name, description, configuration: { sections, criteria }
+      });
+    } catch (error) { return sendError(reply, error); }
+  });
+
+  app.delete<{ Params: { id: string } }>("/api/v1/checklists/:id", { schema: { params: IdParamsSchema } }, async (request, reply) => {
+    try { await deleteChecklist(repository, request.params.id); return reply.code(204).send(); }
     catch (error) { return sendError(reply, error); }
   });
 

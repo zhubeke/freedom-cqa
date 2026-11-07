@@ -13,7 +13,7 @@ const model = defineModel<string>({ required: true });
       name="conversation-search"
       aria-label="Search conversations"
       placeholder="Search by customer or reference"
-      class="h-12 w-full rounded-2xl border border-transparent bg-surface pl-11 pr-11 text-sm text-ink outline-none transition placeholder:text-muted focus:border-primary/35 focus:bg-white focus:ring-3 focus:ring-primary/10"
+      class="h-11 w-full rounded-xl border border-line bg-white pl-11 pr-11 text-sm text-ink outline-none transition placeholder:text-muted focus:border-primary/50 focus:ring-3 focus:ring-primary/10"
     />
     <button
       v-if="model"

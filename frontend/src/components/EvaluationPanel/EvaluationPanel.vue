@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import { AlertTriangle, CheckCircle2, ExternalLink, LoaderCircle, RotateCw, ShieldAlert, Sparkles, X } from "lucide-vue-next";
-import { listChecklists, listChecklistVersions } from "../../api/checklists";
+import { listChecklists } from "../../api/checklists";
 import { evaluationKeys, getEvaluationHistory, retryEvaluation, startEvaluation } from "../../api/evaluations";
 
 const props = defineProps<{ conversationId: string }>();
@@ -15,17 +15,11 @@ const selectedRunId = ref("");
 
 const checklistsQuery = useQuery({ queryKey: ["checklists"], queryFn: ({ signal }) => listChecklists(signal) });
 watch(() => checklistsQuery.data.value, (items) => {
-  if (!selectedChecklistId.value && items?.length) selectedChecklistId.value = items.find((item) => item.id === "freedom-default-checklist")?.id ?? items[0]!.id;
+  if (items?.length && !items.some((item) => item.id === selectedChecklistId.value)) selectedChecklistId.value = items.find((item) => item.id === "freedom-default-checklist")?.id ?? items[0]!.id;
+  if (!items?.length) selectedChecklistId.value = "";
 }, { immediate: true });
-const versionsQuery = useQuery({
-  queryKey: computed(() => ["checklists", selectedChecklistId.value, "versions"]),
-  queryFn: ({ signal }) => listChecklistVersions(selectedChecklistId.value, signal),
-  enabled: computed(() => Boolean(selectedChecklistId.value))
-});
-watch(() => versionsQuery.data.value, (versions) => {
-  if (!versions?.length) return;
-  const checklist = checklistsQuery.data.value?.find((item) => item.id === selectedChecklistId.value);
-  selectedVersionId.value = checklist?.active_version_id ?? versions[0]!.id;
+watch([selectedChecklistId, () => checklistsQuery.data.value], ([id, items]) => {
+  selectedVersionId.value = items?.find((item) => item.id === id)?.active_version_id ?? "";
 }, { immediate: true });
 
 const historyQuery = useQuery({
@@ -112,8 +106,7 @@ function answer(value: boolean | number | null, isNa: boolean) { return isNa ? "
       <div class="flex items-center justify-between"><h2 id="evaluation-dialog-title" class="text-lg font-bold">Evaluate conversation</h2><button class="icon-button" type="button" aria-label="Close" @click="dialogOpen = false"><X :size="20" /></button></div>
       <label class="label mt-5" for="evaluation-checklist">Checklist</label>
       <select id="evaluation-checklist" v-model="selectedChecklistId" class="field mt-2"><option v-for="checklist in checklistsQuery.data.value" :key="checklist.id" :value="checklist.id">{{ checklist.name }}</option></select>
-      <label class="label mt-4" for="evaluation-version">Version</label>
-      <select id="evaluation-version" v-model="selectedVersionId" class="field mt-2"><option v-for="version in versionsQuery.data.value" :key="version.id" :value="version.id">Version {{ version.version_number }}</option></select>
+      <p class="mt-3 text-sm text-muted">The checklist’s current configuration will be used.</p>
       <p v-if="startMutation.error.value" class="mt-3 text-sm text-red-700">{{ startMutation.error.value.message }}</p>
       <div class="mt-6 flex justify-end gap-3"><button class="button-secondary" type="button" @click="dialogOpen = false">Cancel</button><button class="button-primary" type="button" :disabled="!selectedVersionId || startMutation.isPending.value" @click="startMutation.mutate()"><LoaderCircle v-if="startMutation.isPending.value" class="animate-spin" :size="17" /> Start evaluation</button></div>
     </div>

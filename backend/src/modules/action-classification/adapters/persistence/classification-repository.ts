@@ -43,7 +43,7 @@ export class ClassificationRepository {
     const metadata = await this.db.collection("conversation_metadata").findOne({ dataset_group_id: groupId, conversation_id: conversationId }, { sort: { created_at: -1 } });
     const evaluation = await this.db.collection("evaluation_runs").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: "completed" }, { sort: { completed_at: -1 } });
     const criteria = evaluation ? await this.db.collection("criterion_evaluations").find({ evaluation_run_id: evaluation.run_id }).toArray() : [];
-    const audio = await this.db.collection("audio_metrics").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: { $in: ["completed", "partial"] } }, { sort: { processed_at: -1 } });
+    const audio = await this.db.collection("audio_metrics").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: { $in: ["completed", "partial"] } }, { sort: { processing_completed_at: -1 } });
     return { metadata, evaluation, criteria, audio };
   }
 

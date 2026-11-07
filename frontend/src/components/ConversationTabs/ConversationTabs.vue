@@ -13,14 +13,14 @@ const tabs: Array<{ value: ConversationTab; label: string; icon: Component }> = 
 </script>
 
 <template>
-  <div class="grid w-full grid-cols-3 gap-1 rounded-2xl bg-surface p-1 sm:w-fit" role="tablist" aria-label="Conversation channel">
+  <div class="grid h-11 w-full grid-cols-3 gap-1 rounded-xl bg-surface p-1 sm:w-fit" role="tablist" aria-label="Conversation channel">
     <button
       v-for="tab in tabs"
       :key="tab.value"
       type="button"
       role="tab"
       :aria-selected="model === tab.value"
-      class="flex min-h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors sm:min-w-24 sm:px-4"
+      class="flex h-9 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors sm:min-w-24 sm:px-4"
       :class="model === tab.value ? 'bg-white text-primary shadow-[0_1px_2px_rgba(32,36,44,0.08)]' : 'text-muted hover:text-ink'"
       @click="model = tab.value"
     >

@@ -12,7 +12,6 @@ export const router = createRouter({
     { path: "/conversations/:id", name: "conversation-detail", component: ConversationDetailPage },
     { path: "/checklists", name: "checklists", component: ChecklistsPage },
     { path: "/checklists/:id/edit", name: "checklist-edit", component: ChecklistBuilderPage },
-    { path: "/checklists/:id/versions/:versionId", name: "checklist-version", component: ChecklistBuilderPage },
     { path: "/:pathMatch(.*)*", redirect: "/conversations" }
   ]
 });

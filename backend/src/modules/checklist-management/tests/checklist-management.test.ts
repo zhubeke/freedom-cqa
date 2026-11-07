@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { activateChecklistVersion } from "../application/activate-checklist-version.js";
 import { createChecklistVersion } from "../application/create-checklist-version.js";
+import { updateChecklist } from "../application/update-checklist.js";
+import { deleteChecklist } from "../application/delete-checklist.js";
 import { ChecklistError, type ChecklistConfiguration, type ChecklistRecord, type ChecklistRepository, type ChecklistSummary, type ChecklistVersionRecord } from "../domain/checklist.types.js";
 import { validateConfiguration } from "../domain/checklist.validation.js";
 import { freedomDefaultConfiguration } from "../seed/freedom-default-checklist.js";
@@ -32,6 +34,15 @@ class MemoryChecklistRepository implements ChecklistRepository {
   async activateVersion(input: { checklistId: string; versionId: string; expectedActiveVersionId: string | null }) {
     const checklist = this.checklists.get(input.checklistId); if (!checklist) throw new ChecklistError("Checklist not found", 404); const version = this.versions.get(input.versionId); if (!version || version.checklist_id !== input.checklistId) throw new ChecklistError("Invalid version"); if (checklist.active_version_id !== input.expectedActiveVersionId) throw new ChecklistError("Concurrent change", 409, "CONCURRENT_CHANGE"); const updated = { ...checklist, active_version_id: input.versionId, updated_at: new Date() }; this.checklists.set(checklist.id, updated); return structuredClone(updated);
   }
+  async updateChecklist(input: { checklistId: string; expectedActiveVersionId: string; name: string; description: string; configuration: ChecklistConfiguration }) {
+    const checklist = this.checklists.get(input.checklistId);
+    if (!checklist) throw new ChecklistError("Checklist not found", 404);
+    if (checklist.active_version_id !== input.expectedActiveVersionId) throw new ChecklistError("Concurrent change", 409, "CONCURRENT_CHANGE");
+    const version = await this.createVersion({ checklistId: input.checklistId, createdFromVersionId: input.expectedActiveVersionId, name: input.name, description: input.description, configuration: input.configuration });
+    const updated = await this.activateVersion({ checklistId: input.checklistId, versionId: version.id, expectedActiveVersionId: input.expectedActiveVersionId });
+    return { checklist: updated, version };
+  }
+  async deleteChecklist(id: string) { return this.checklists.delete(id); }
 }
 
 const seed = async () => { const repository = new MemoryChecklistRepository(); await seedFreedomChecklist(repository); const checklist = (await repository.list())[0]!; const version = (await repository.listVersions(checklist.id))[0]!; return { repository, checklist, version }; };
@@ -77,3 +88,20 @@ test("invalid configurations are rejected with meaningful errors", () => {
 });
 
 test("activation detects concurrent active-version changes", async () => { const { repository, checklist, version } = await seed(); await assert.rejects(() => activateChecklistVersion(repository, { checklistId: checklist.id, versionId: version.id, expectedActiveVersionId: "stale" }), (error: unknown) => error instanceof ChecklistError && error.code === "CONCURRENT_CHANGE"); });
+
+test("direct editing activates a hidden snapshot and preserves the previous configuration", async () => {
+  const { repository, checklist, version } = await seed();
+  const configuration = structuredClone({ sections: version.sections, criteria: version.criteria });
+  configuration.criteria[0]!.display_name = "Updated directly";
+  const result = await updateChecklist(repository, { checklistId: checklist.id, expectedActiveVersionId: version.id, name: "Updated checklist", description: "Updated", configuration });
+  assert.equal(result.checklist.active_version_id, result.version.id);
+  assert.equal(result.version.criteria[0]!.display_name, "Updated directly");
+  assert.equal((await repository.findVersion(checklist.id, version.id))?.criteria[0]?.display_name, "Establishing Contact");
+});
+
+test("deleting a checklist preserves its historical snapshots", async () => {
+  const { repository, checklist, version } = await seed();
+  await deleteChecklist(repository, checklist.id);
+  assert.equal(await repository.findChecklist(checklist.id), null);
+  assert.equal((await repository.findVersion(checklist.id, version.id))?.id, version.id);
+});

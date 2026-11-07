@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useHistoryStore } from "../../app/history";
 import { useRoute, useRouter } from "vue-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query";
 import ConversationFilters from "../../components/ConversationFilters/ConversationFilters.vue";
@@ -12,7 +13,6 @@ import ImportDialog from "../../components/ImportDialog/ImportDialog.vue";
 import BatchEvaluationButton from "../../components/BatchEvaluationButton/BatchEvaluationButton.vue";
 import BatchEvaluationDialog from "../../components/BatchEvaluationDialog/BatchEvaluationDialog.vue";
 import BatchProgress from "../../components/BatchProgress/BatchProgress.vue";
-import { visualAssets } from "../../assets";
 import { ApiError, apiGet, apiUpload } from "../../api/client";
 import type {
   Conversation,
@@ -43,8 +43,17 @@ const batchDialogOpen = ref(false);
 const activeBatchId = ref(window.localStorage.getItem("cqa-active-batch-id") ?? "");
 const importId = ref<string>();
 const queryClient = useQueryClient();
+const history = useHistoryStore();
 let syncingRoute = false;
-watch([searchQuery, language, activeTab, action], () => {
+type FilterState = [string, ConversationLanguage, ConversationTab, ActionCode | "all"];
+const setFilters = ([search, nextLanguage, tab, nextAction]: FilterState) => {
+  searchQuery.value = search; language.value = nextLanguage; activeTab.value = tab; action.value = nextAction;
+};
+watch([searchQuery, language, activeTab, action], (next, previous) => {
+  if (!syncingRoute && previous) {
+    const before = [...previous] as FilterState; const after = [...next] as FilterState;
+    history.record({ label: "conversation filters", mergeKey: "conversation-filters", undo: () => setFilters(before), redo: () => setFilters(after) });
+  }
   if (!syncingRoute) page.value = 1;
 });
 watch([searchQuery, language, activeTab, action, page], () => {
@@ -123,7 +132,6 @@ function batchStarted(batch: EvaluationBatch) {
 <template>
   <section aria-labelledby="conversations-title" class="relative">
     <div class="relative mb-7 overflow-hidden rounded-[1.75rem] bg-white px-5 py-6 sm:mb-8 sm:px-8 sm:py-8">
-      <img :src="visualAssets.images.conversationPattern" alt="" class="pointer-events-none absolute -right-5 top-0 hidden h-full w-auto sm:block" />
       <div class="relative flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
         <div>
         <p class="mb-2 text-sm font-semibold text-primary">Quality workspace</p>
@@ -134,7 +142,7 @@ function batchStarted(batch: EvaluationBatch) {
           Find, review, and evaluate customer interactions in one focused workspace.
         </p>
         </div>
-        <div class="flex flex-wrap gap-3">
+        <div class="flex w-full flex-wrap gap-3 sm:w-auto">
           <BatchEvaluationButton @click="batchDialogOpen = true" />
           <ImportConversationsButton @click="dialogOpen = true" />
         </div>
@@ -145,21 +153,14 @@ function batchStarted(batch: EvaluationBatch) {
 
     <div class="overflow-hidden rounded-[1.75rem] bg-white">
       <div class="border-b border-line px-4 py-4 sm:px-6 sm:py-5">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div class="grid gap-3 md:grid-cols-[auto_minmax(12rem,1fr)_10rem_13rem] md:items-center">
           <ConversationTabs v-model="activeTab" />
-          <div class="w-full lg:max-w-md">
-            <ConversationSearch v-model="searchQuery" />
-          </div>
-        </div>
-        <div class="mt-4">
-          <div class="flex flex-wrap items-center gap-3">
-            <ConversationFilters v-model:language="language" />
-            <label class="text-sm text-muted">Action
-              <select v-model="action" class="ml-2 min-h-10 rounded-xl border border-line bg-white px-3 text-sm text-ink">
+          <ConversationSearch v-model="searchQuery" />
+          <ConversationFilters v-model:language="language" />
+          <label class="sr-only" for="conversation-action">Action</label>
+              <select id="conversation-action" v-model="action" class="h-11 w-full rounded-xl border border-line bg-white px-3 text-sm text-ink" aria-label="Filter by recommended action">
                 <option value="all">All actions</option><option v-for="code in ACTION_CODES" :key="code" :value="code">{{ ACTION_LABELS[code] }}</option>
               </select>
-            </label>
-          </div>
         </div>
       </div>
 

@@ -36,6 +36,12 @@ export interface ActionFeatures {
   client_average_sentiment: number | null; client_negative_message_count: number | null;
   sentiment_recovery_detected: boolean | null; silence_ratio: number | null; longest_silence_seconds: number | null;
   audio_loudness_variability: number | null;
+  audio_speech_ratio: number | null; audio_silence_ratio: number | null; audio_overlap_ratio: number | null;
+  audio_detected_speaker_count: number | null; audio_operator_speaking_ratio: number | null;
+  audio_client_speaking_ratio: number | null; audio_interruption_count_estimate: number | null;
+  audio_operator_rms_dbfs: number | null; audio_client_rms_dbfs: number | null;
+  audio_longest_silence_seconds: number | null; audio_alignment_confidence: number | null;
+  audio_features_available: boolean;
 }
 
 export interface RulePrediction {

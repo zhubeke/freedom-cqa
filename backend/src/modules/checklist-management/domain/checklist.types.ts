@@ -67,6 +67,8 @@ export interface ChecklistRepository {
   createChecklist(input: { id?: string; name: string; description: string; configuration: ChecklistConfiguration }): Promise<{ checklist: ChecklistRecord; version: ChecklistVersionRecord }>;
   createVersion(input: { checklistId: string; createdFromVersionId: string; name: string; description: string; configuration: ChecklistConfiguration }): Promise<ChecklistVersionRecord>;
   activateVersion(input: { checklistId: string; versionId: string; expectedActiveVersionId: string | null }): Promise<ChecklistRecord>;
+  updateChecklist(input: { checklistId: string; expectedActiveVersionId: string; name: string; description: string; configuration: ChecklistConfiguration }): Promise<{ checklist: ChecklistRecord; version: ChecklistVersionRecord }>;
+  deleteChecklist(id: string): Promise<boolean>;
 }
 
 export class ChecklistError extends Error {

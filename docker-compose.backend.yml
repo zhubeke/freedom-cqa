@@ -37,6 +37,8 @@ services:
       TABPFN_MAX_RETRIES: ${TABPFN_MAX_RETRIES:-2}
       CQA_CLASSIFICATION_MIN_PER_CLASS: ${CQA_CLASSIFICATION_MIN_PER_CLASS:-3}
       CQA_CLASSIFICATION_MIN_TOTAL: ${CQA_CLASSIFICATION_MIN_TOTAL:-12}
+      CQA_AUDIO_ALLOWED_HOSTS: ${CQA_AUDIO_ALLOWED_HOSTS:-ec88f21f1accecf38e20095a9fe175.a5.environment.api.powerplatform.com,freedomholdingcorporation.crm11.dynamics.com}
+      CQA_AUDIO_MAX_DOWNLOAD_BYTES: ${CQA_AUDIO_MAX_DOWNLOAD_BYTES:-104857600}
     ports:
       - "${BACKEND_PORT}:3000"
     volumes:
@@ -119,11 +121,35 @@ services:
       MONGODB_DATABASE: ${MONGODB_DATABASE}
       REDPANDA_BROKERS: ${REDPANDA_BROKERS}
       CQA_AUDIO_CONSUMER_GROUP: ${CQA_AUDIO_CONSUMER_GROUP:-cqa-audio-worker-v1}
+      CQA_AUDIO_ENABLED: ${CQA_AUDIO_ENABLED:-true}
+      CQA_AUDIO_DEVICE: ${CQA_AUDIO_DEVICE:-cpu}
+      CQA_AUDIO_MODEL_ID: ${CQA_AUDIO_MODEL_ID:-pyannote/speaker-diarization-community-1}
+      CQA_AUDIO_MODEL_REVISION: ${CQA_AUDIO_MODEL_REVISION:-main}
+      CQA_AUDIO_MODEL_CACHE_DIR: /models/huggingface
+      CQA_AUDIO_LOCAL_DIR: /var/lib/cqa-audio
+      HF_HOME: /models/huggingface
+      HF_TOKEN: ${HF_TOKEN:-}
       CQA_AUDIO_ALLOWED_HOSTS: ${CQA_AUDIO_ALLOWED_HOSTS:-ec88f21f1accecf38e20095a9fe175.a5.environment.api.powerplatform.com,freedomholdingcorporation.crm11.dynamics.com}
       CQA_AUDIO_MAX_DOWNLOAD_BYTES: ${CQA_AUDIO_MAX_DOWNLOAD_BYTES:-104857600}
-      CQA_AUDIO_DOWNLOAD_TIMEOUT_SECONDS: ${CQA_AUDIO_DOWNLOAD_TIMEOUT_SECONDS:-30}
+      CQA_AUDIO_REQUEST_TIMEOUT_SECONDS: ${CQA_AUDIO_REQUEST_TIMEOUT_SECONDS:-30}
+      CQA_AUDIO_MAX_DURATION_SECONDS: ${CQA_AUDIO_MAX_DURATION_SECONDS:-14400}
+      CQA_AUDIO_MAX_RETRIES: ${CQA_AUDIO_MAX_RETRIES:-2}
+      CQA_AUDIO_MIN_OVERLAP_SECONDS: ${CQA_AUDIO_MIN_OVERLAP_SECONDS:-0.15}
+      CQA_AUDIO_ALIGNMENT_CONFIDENCE_THRESHOLD: ${CQA_AUDIO_ALIGNMENT_CONFIDENCE_THRESHOLD:-0.55}
+      CQA_AUDIO_TORCH_THREADS: ${CQA_AUDIO_TORCH_THREADS:-2}
+    volumes:
+      - cqa_audio_models:/models/huggingface
+      - cqa_audio_temp:/var/tmp/cqa-audio
+      - cqa_audio_files:/var/lib/cqa-audio:ro
+    tmpfs:
+      - /tmp:size=256m,mode=1770
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+    stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health/live', timeout=3)"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -134,3 +160,8 @@ networks:
   cqa_net:
     external: true
     name: cqa_net
+
+volumes:
+  cqa_audio_models:
+  cqa_audio_temp:
+  cqa_audio_files:

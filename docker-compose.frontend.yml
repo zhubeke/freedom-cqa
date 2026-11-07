@@ -1,0 +1,22 @@
+services:
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_ROUTER_BASE: ${VITE_ROUTER_BASE}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz && wget -q -O /dev/null http://127.0.0.1:8080/api/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    networks: [cqa_net]
+
+networks:
+  cqa_net:
+    external: true
+    name: cqa_net

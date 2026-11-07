@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">No matching conversations illustration</title>
+  <desc id="desc">A search field and magnifying glass with no results.</desc>
+  <ellipse cx="158" cy="194" rx="86" ry="11" fill="#eef0f2"/>
+  <rect x="59" y="46" width="202" height="130" rx="28" fill="#fff" stroke="#e6e8eb" stroke-width="3"/>
+  <rect x="82" y="68" width="156" height="34" rx="17" fill="#f5f6f7"/>
+  <circle cx="101" cy="85" r="7" fill="none" stroke="#9299a3" stroke-width="3"/>
+  <path d="m106 90 6 6" stroke="#9299a3" stroke-linecap="round" stroke-width="3"/>
+  <path d="M91 124h76M91 146h49" stroke="#e6e8eb" stroke-linecap="round" stroke-width="8"/>
+  <circle cx="207" cy="139" r="31" fill="#fff0f0" stroke="#f14646" stroke-width="4"/>
+  <circle cx="202" cy="134" r="10" fill="none" stroke="#f14646" stroke-width="5"/>
+  <path d="m210 142 13 13" stroke="#f14646" stroke-linecap="round" stroke-width="6"/>
+</svg>

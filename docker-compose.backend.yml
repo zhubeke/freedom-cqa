@@ -1,0 +1,54 @@
+services:
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+      FASTIFY_HOST: ${FASTIFY_HOST}
+      FASTIFY_PORT: ${FASTIFY_PORT}
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      REDIS_URL: ${REDIS_URL}
+      REDPANDA_BROKERS: ${REDPANDA_BROKERS}
+      KAFKA_CLIENT_ID: ${KAFKA_CLIENT_ID}
+      KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-cqa-pipeline-worker-v1}
+    ports:
+      - "${BACKEND_PORT}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [cqa_net]
+
+  pipeline-worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: ["node", "dist/apps/worker/server.js"]
+    environment:
+      NODE_ENV: ${NODE_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
+      FASTIFY_HOST: 0.0.0.0
+      FASTIFY_PORT: 3000
+      MONGODB_URI: ${MONGODB_URI}
+      MONGODB_DATABASE: ${MONGODB_DATABASE}
+      REDIS_URL: ${REDIS_URL}
+      REDPANDA_BROKERS: ${REDPANDA_BROKERS}
+      KAFKA_CLIENT_ID: cqa-pipeline-worker
+      KAFKA_CONSUMER_GROUP_ID: ${KAFKA_CONSUMER_GROUP_ID:-cqa-pipeline-worker-v1}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3001/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks: [cqa_net]
+
+networks:
+  cqa_net:
+    external: true
+    name: cqa_net

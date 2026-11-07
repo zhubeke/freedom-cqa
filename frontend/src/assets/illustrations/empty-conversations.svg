@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" role="img" aria-labelledby="title desc">
+  <title id="title">Empty conversations illustration</title>
+  <desc id="desc">A tidy message card with a speech bubble and check mark.</desc>
+  <ellipse cx="160" cy="195" rx="92" ry="12" fill="#eef0f2"/>
+  <circle cx="75" cy="54" r="9" fill="#fff0f0"/>
+  <circle cx="257" cy="78" r="6" fill="#f14646" opacity=".16"/>
+  <path d="m260 138 9-9m-9 0 9 9" stroke="#c7cbd1" stroke-linecap="round" stroke-width="4"/>
+  <rect x="69" y="38" width="182" height="145" rx="28" fill="#fff" stroke="#e6e8eb" stroke-width="3"/>
+  <rect x="88" y="58" width="144" height="18" rx="9" fill="#f5f6f7"/>
+  <circle cx="101" cy="67" r="4" fill="#f14646"/>
+  <path d="M99 102a16 16 0 0 1 16-16h74a16 16 0 0 1 16 16v24a16 16 0 0 1-16 16h-36l-17 14v-14h-21a16 16 0 0 1-16-16v-24Z" fill="#fff0f0"/>
+  <path d="m146 112 8 8 16-18" fill="none" stroke="#f14646" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/>
+  <path d="M88 164h68" stroke="#e6e8eb" stroke-linecap="round" stroke-width="8"/>
+  <path d="M171 164h33" stroke="#f14646" stroke-linecap="round" stroke-width="8" opacity=".28"/>
+</svg>

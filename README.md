@@ -1,3 +1,5 @@
+Team: cook it
+
 # Conversation Quality Analytics
 
 Conversation Quality Analytics (CQA) imports customer conversations, evaluates them against quality criteria, and displays the results in a Vue dashboard.

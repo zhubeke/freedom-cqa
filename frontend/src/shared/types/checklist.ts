@@ -12,6 +12,10 @@ export interface ChecklistVersion {
 }
 export interface Checklist {
   id: string; name: string; description: string; active_version_id: string | null; created_at: string; updated_at: string;
+  is_active?: boolean;
 }
 export interface ChecklistDetail extends Checklist { active_version: ChecklistVersion | null }
-export interface ChecklistSummary extends Checklist { active_version_number: number | null; criterion_count: number; total_scoring_weight: number }
+export interface ChecklistSummary extends Checklist {
+  active_version_number: number | null; criterion_count: number; total_scoring_weight: number;
+  enabled_criterion_count?: number; can_delete?: boolean; can_deactivate?: boolean;
+}

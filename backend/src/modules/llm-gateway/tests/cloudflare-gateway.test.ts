@@ -4,7 +4,7 @@ import type { AppConfig } from "../../../config/config.js";
 import { CloudflareGateway, createLlmLimiter } from "../adapters/cloudflare-gateway.js";
 import { LlmGatewayError } from "../application/llm-gateway.js";
 
-const base: AppConfig["llm"] = { provider: "workers_ai", endpoint: null, accountId: "account", apiToken: "secret", model: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", timeoutMs: 1000, maxConcurrency: 4, requestsPerMinute: 10_000, tokensPerMinute: 0, maxRetries: 2, maxInlineRetryDelayMs: 15_000, minRequestIntervalMs: 0 };
+const base: AppConfig["llm"] = { provider: "workers_ai", endpoint: null, accountId: "account", apiToken: "secret", model: "@cf/meta/llama-3.1-8b-instruct-fp8-fast", timeoutMs: 1000, maxConcurrency: 4, requestsPerMinute: 10_000, tokensPerMinute: 0, maxRetries: 2, maxInlineRetryDelayMs: 15_000, minRequestIntervalMs: 0 };
 test("uses the OpenAI-compatible Workers AI chat-completions contract without exposing the token", async () => {
   let url = ""; let authorization = ""; let requestBody: Record<string, unknown> = {};
   const fetcher = (async (input: string | URL | Request, init?: RequestInit) => {

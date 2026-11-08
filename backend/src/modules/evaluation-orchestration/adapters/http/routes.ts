@@ -16,7 +16,7 @@ export async function registerEvaluationRoutes(app: FastifyInstance, db: Db, pro
     schema: { params: EvaluationParamsSchema, body: StartEvaluationBodySchema }
   }, async (request, reply) => {
     try {
-      const result = await startEvaluation(db, repository, request.params.id, request.body.checklist_version_id, { ...(config ? { modelId: config.llm.model } : {}), promptVersion: "criterion-v1" });
+      const result = await startEvaluation(db, repository, request.params.id, request.body.checklist_version_id, { ...(config ? { modelId: config.llm.model } : {}), ...(request.body.dataset_group_id ? { datasetGroupId: request.body.dataset_group_id } : {}), promptVersion: "criterion-v1" });
       if (!result.duplicate) {
         try { await publishPendingEvaluations(repository, producer, result.run.run_id); }
         catch (error) { request.log.warn({ runId: result.run.run_id, error }, "Evaluation publication deferred to recovery"); }
@@ -45,7 +45,9 @@ export async function registerEvaluationRoutes(app: FastifyInstance, db: Db, pro
     }
     return reply.code(202).send({ evaluation_run_id: run.run_id, status: "processing", queued_criteria: retryable.length });
   });
-  app.get<{ Params: { id: string } }>("/api/v1/conversations/:id/evaluations", { schema: { params: EvaluationParamsSchema } }, async (request) => {
-    return (await repository.history(request.params.id)).filter(Boolean);
+  app.get<{ Params: { id: string }; Querystring: { datasetGroupId?: string } }>("/api/v1/conversations/:id/evaluations", { schema: { params: EvaluationParamsSchema,
+    querystring: { type: "object", properties: { datasetGroupId: { type: "string", minLength: 1 } }, additionalProperties: false }
+  } }, async (request) => {
+    return (await repository.history(request.params.id, request.query.datasetGroupId)).filter(Boolean);
   });
 }

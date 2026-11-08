@@ -1,5 +1,6 @@
 export const APPEAL_STATES = ["OPEN", "UNDER_REVIEW", "CONFIRMED", "OVERRIDDEN"] as const;
 export type AppealState = typeof APPEAL_STATES[number];
+export type DecisionOutcome = "UPHELD" | "SCORE_CHANGED" | "REASONING_CHANGED";
 
 export interface AppealDocument {
   _id: string;
@@ -20,12 +21,18 @@ export interface AppealDocument {
     answer_type: "boolean" | "numeric" | "flag";
     allowed_values: number[];
     na_enabled: boolean;
+    criterion_weight?: number;
+    scale_maximum?: number;
+    numeric_scale?: Array<{ value: number; description: string }>;
   };
   decision: null | {
     reviewer: string;
     justification: string;
     decided_at: Date;
     effective_value: boolean | number | null;
+    outcome?: DecisionOutcome;
+    effective_explanation?: string | null;
+    effective_evidence_message_ids?: string[];
   };
   created_at: Date;
   updated_at: Date;

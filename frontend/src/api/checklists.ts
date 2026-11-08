@@ -7,3 +7,5 @@ export const getChecklist = (id: string, signal?: AbortSignal) => apiGet<Checkli
 export const createChecklist = (body: { name: string; description: string; sections: ChecklistSection[]; criteria: ChecklistCriterion[] }) => apiPost<{ checklist: Checklist; version: ChecklistVersion }>("/v1/checklists", body);
 export const updateChecklist = (id: string, body: { name: string; description: string; expected_active_version_id: string; sections: ChecklistSection[]; criteria: ChecklistCriterion[] }) => apiPut<{ checklist: Checklist; version: ChecklistVersion }>(`/v1/checklists/${encodeURIComponent(id)}`, body);
 export const deleteChecklist = (id: string) => apiDelete(`/v1/checklists/${encodeURIComponent(id)}`);
+export const setChecklistStatus = (id: string, isActive: boolean) => apiPost<Checklist>(`/v1/checklists/${encodeURIComponent(id)}/status`, { is_active: isActive });
+export const duplicateChecklist = (id: string) => apiPost<{ checklist: Checklist; version: ChecklistVersion }>(`/v1/checklists/${encodeURIComponent(id)}/duplicate`, {});

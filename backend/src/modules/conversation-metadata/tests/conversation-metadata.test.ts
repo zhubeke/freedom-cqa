@@ -96,6 +96,25 @@ test("semantic enums normalize case and separators only", () => {
   assert.equal(normalized.operator_behavior.politeness.rating, "not_observable");
 });
 
+test("blank primary intent label reuses a non-empty semantic category", () => {
+  const value = semanticFixture("p1-en-006");
+  value.customer_intent.primary_intent.label = "   ";
+  value.customer_intent.topic_category = "brokerage support";
+  const normalized = normalizeModelVocabulary(value) as typeof value;
+  assert.equal(normalized.customer_intent.primary_intent.label, "brokerage support");
+  assert.equal(Value.Check(SemanticMetadataSchema, normalized), true);
+});
+
+test("blank primary intent label remains invalid without a semantic fallback", async () => {
+  const value = semanticFixture("p1-en-006");
+  value.customer_intent.primary_intent.label = "";
+  value.customer_intent.topic_category = "";
+  value.customer_intent.requested_outcome = "";
+  const gateway = { complete: async () => ({ content: JSON.stringify(value), modelId: "test", latencyMs: 1, usage: null }) };
+  const result = await extractSemanticMetadataPartial(normalized("p1-en-006"), gateway);
+  assert.ok(result.validationErrors.some((error) => error.path === "/customer_intent/primary_intent/label"));
+});
+
 test("invalid semantic rating remains invalid and produces a partial extraction", async () => {
   const value = semanticFixture("p1-en-006");
   value.operator_behavior.empathy.rating = "warm";

@@ -101,6 +101,28 @@ export class CloudflareCredentialPool implements LlmGateway {
         else throw error;
       } finally { state.inFlight -= 1; state.waitMs += Date.now() - queuedAt; }
     }
+    // A cooldown is still an account error. Preserve its category on subsequent
+    // requests instead of turning rejected credentials/models into endless retries.
+    const cooling = operational.filter((state) => state.cooldownUntil > Date.now());
+    const retryableStates = cooling.filter((state) => ["quota_exhausted", "rate_limited", "temporarily_unavailable"].includes(state.status));
+    const next = (retryableStates.length ? retryableStates : cooling).sort((a, b) => a.cooldownUntil - b.cooldownUntil)[0];
+    if (next) {
+      const category = next.status === "quota_exhausted" ? "quota_exhausted"
+        : next.status === "rate_limited" ? "rate_limited"
+        : next.status === "invalid_credentials" ? "authentication"
+        : next.status === "permission_denied" ? (next.lastErrorCategory === "not_found" ? "not_found" : "authorization")
+        : "provider_unavailable";
+      const retryable = retryableStates.length > 0;
+      const detail = lastError instanceof LlmGatewayError && lastError.category === category ? lastError.message
+        : category === "authentication" ? "Cloudflare rejected the configured API tokens"
+        : category === "authorization" ? "Cloudflare denied access to the configured model; check account permissions and plan"
+        : category === "not_found" ? "Cloudflare account, model, or inference endpoint was not found"
+        : category === "quota_exhausted" ? "Cloudflare daily inference quota is exhausted"
+        : "AI capacity temporarily unavailable. Your completed results are saved.";
+      throw new LlmGatewayError(detail, category, retryable,
+        lastError instanceof LlmGatewayError && lastError.category === category ? lastError.statusCode : undefined,
+        retryable ? Math.max(0, next.cooldownUntil - Date.now()) : undefined);
+    }
     throw lastError instanceof Error ? lastError : new LlmGatewayError("AI capacity temporarily unavailable. Your completed results are saved.", "provider_unavailable", true);
   }
 

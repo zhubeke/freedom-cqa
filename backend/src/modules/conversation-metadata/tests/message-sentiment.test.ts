@@ -5,6 +5,9 @@ import { aggregateSentiment } from "../application/aggregate-sentiment.js";
 import { classifySentimentBatch, prepareSentimentBatches } from "../application/analyze-message-sentiment.js";
 import type { NormalizedConversation } from "../application/metadata.types.js";
 import type { MessageSentimentResult } from "../schemas/sentiment.schemas.js";
+import { processSentiment } from "../application/process-sentiment.js";
+import { makeSentimentEvent } from "../application/sentiment-events.js";
+import { SentimentRepository } from "../adapters/persistence/sentiment-repository.js";
 
 const conversation: NormalizedConversation = {
   dataset_group_id: "DEV", conversation_id: "p1-ru-001", original_channel: "agent chat", original_language: "RU", normalized_channel: "chat", normalized_language: "ru", has_audio: false,
@@ -27,6 +30,12 @@ test("bounded batches retain bot context but target only human messages", () => 
   const batches = prepareSentimentBatches(conversation, 15, 2);
   assert.deepEqual(batches[0]?.target_ids, ["m1", "m3", "m4"]);
   assert.equal(batches[0]?.context.some((item) => item.speaker === "bot"), true);
+});
+
+test("smaller batches bound sentiment output size", () => {
+  const repeated: NormalizedConversation = { ...conversation, transcript: Array.from({ length: 18 }, (_, index) => ({ ...conversation.transcript[index % conversation.transcript.length]!, message_id: `m${index}`, speaker: index % 2 ? "operator" as const : "client" as const })) };
+  const batches = prepareSentimentBatches(repeated, 4, 2);
+  assert.deepEqual(batches.map((batch) => batch.target_ids.length), [4, 4, 4, 4, 2]);
 });
 
 test("neutral request and explicit gratitude validate with exact evidence", async () => {
@@ -56,4 +65,50 @@ test("uncertain noisy observations are excluded from reliable client summary", (
   const trajectory = aggregateSentiment(conversation, [uncertain], true);
   assert.equal(trajectory.status, "unavailable");
   assert.equal(trajectory.initial_client_sentiment, null);
+});
+
+test("redelivery can resume the exact processing event while completed jobs remain protected", async () => {
+  let filter: any;
+  const repository = new SentimentRepository({ collection: () => ({
+    updateOne: async (value: unknown) => { filter = value; return { modifiedCount: 1 }; }
+  }) } as never);
+  assert.equal(await repository.start("DEV", "c1", "v1", "event-1"), true);
+  assert.equal(filter.source_event_id, "event-1");
+  assert.deepEqual(filter.status.$in, ["queued", "processing"]);
+});
+
+test("forced sentiment redelivery reuses successful messages from the same generation", async () => {
+  const values = [result("m1", "client", "neutral", 0, "Где найти мой тариф?"), result("m3", "operator", "neutral", 0, "Откройте раздел Тариф"), result("m4", "client", "positive", 0.8, "большое спасибо")];
+  let completed = false, modelCalls = 0;
+  const repository = {
+    start: async () => true, conversation: async () => conversation,
+    results: async () => values,
+    processedMessageIds: async (_group: string, _id: string, _version: string, eventId: string) => { assert.equal(eventId, "same-generation"); return values.map((item) => item.message_id); },
+    complete: async () => { completed = true; }
+  };
+  const event = { ...makeSentimentEvent("cqa.sentiment.requested", "DEV", conversation.conversation_id, "same-generation"), force_reanalysis: true };
+  await processSentiment(event, repository as never, { complete: async () => { modelCalls++; throw new Error("Unexpected duplicate model request"); } }, { send: async () => {} } as never);
+  assert.equal(completed, true);
+  assert.equal(modelCalls, 0);
+});
+
+test("a completed sentiment generation remains available after a subsequent manual rerun", async () => {
+  const history = new Map<string, unknown>();
+  let current: any = { dataset_group_id: "DEV", conversation_id: "c1", analyzer_version: "v1", source_event_id: "old-event", status: "partial", failed_batches: [{ error: "Original batch failure" }] };
+  const repository = new SentimentRepository({ collection: (name: string) => {
+    if (name === "sentiment_analysis_history") return {
+      updateOne: async (filter: any, update: any) => { history.set(filter._id, update.$setOnInsert); },
+      findOne: async (filter: any) => history.get(filter._id) ?? null
+    };
+    if (name === "conversation_metadata") return { findOne: async () => null };
+    return {
+      findOne: async (filter: any) => filter.source_event_id && filter.source_event_id !== current.source_event_id ? null : current,
+      updateOne: async (_filter: unknown, update: any) => { current = { ...current, ...update.$set }; return { matchedCount: 1 }; }
+    };
+  } } as never);
+  assert.equal(await repository.queue("DEV", "c1", "v1", "new-event"), true);
+  const old = await repository.generation("DEV", "c1", "v1", "old-event");
+  assert.equal(old?.status, "partial");
+  assert.equal(old?.failed_batches[0]?.error, "Original batch failure");
+  assert.equal((await repository.generation("DEV", "c1", "v1", "new-event"))?.status, "queued");
 });

@@ -11,12 +11,14 @@ import { registerChecklistManagementRoutes } from "../../modules/checklist-manag
 import { MongoChecklistRepository } from "../../modules/checklist-management/adapters/persistence/checklist-repository.js";
 import { seedFreedomChecklist } from "../../modules/checklist-management/seed/seed-freedom-checklist.js";
 import { registerEvaluationRoutes } from "../../modules/evaluation-orchestration/adapters/http/routes.js";
+import { registerAnalysisRoutes } from "../../modules/analysis-jobs/adapters/http/routes.js";
 import { registerBatchRoutes } from "../../modules/batch-evaluation/adapters/http/routes.js";
 import { registerMetadataRoutes } from "../../modules/conversation-metadata/adapters/http/routes.js";
 import { registerClassificationRoutes } from "../../modules/action-classification/adapters/http/routes.js";
 import { registerAudioIntelligenceRoutes } from "../../modules/audio-intelligence/adapters/http/routes.js";
 import { registerAppealRoutes } from "../../modules/appeals/adapters/http/routes.js";
 import { registerAnalyticsRoutes } from "../../modules/analytics/adapters/http/routes.js";
+import { registerResultsExportRoutes } from "../../modules/results-export/adapters/http/routes.js";
 
 export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: config.logLevel } });
@@ -46,12 +48,14 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await seedFreedomChecklist(checklistRepository);
   await registerChecklistManagementRoutes(app, connections.mongodb.db);
   await registerEvaluationRoutes(app, connections.mongodb.db, producer, config);
+  await registerAnalysisRoutes(app, connections.mongodb.db, producer, config);
   await registerBatchRoutes(app, connections.mongodb.db, producer, config);
   await registerMetadataRoutes(app, connections.mongodb.db, producer);
   await registerClassificationRoutes(app, connections.mongodb.db, producer, config);
   await registerAudioIntelligenceRoutes(app, connections.mongodb.db, producer);
   await registerAppealRoutes(app, connections.mongodb.db, producer);
   await registerAnalyticsRoutes(app, connections.mongodb.db);
+  await registerResultsExportRoutes(app, connections.mongodb.db, config);
 
   app.addHook("onClose", async () => {
     await Promise.allSettled([

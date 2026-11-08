@@ -64,7 +64,9 @@ export async function registerMetadataRoutes(app: FastifyInstance, db: Db, produ
     if (!conversation) return reply.code(404).send({ error: "Conversation not found" });
     const groupId = String(conversation.dataset_group_id);
     const event = makeMetadataEvent("cqa.metadata.requested", groupId, request.params.id, `manual:${randomUUID()}`);
-    await repository.queue(groupId, request.params.id, METADATA_EXTRACTOR_VERSION, event.event_id, Boolean(conversation.has_audio));
+    if (!await repository.queue(groupId, request.params.id, METADATA_EXTRACTOR_VERSION, event.event_id, Boolean(conversation.has_audio), true)) {
+      return reply.code(202).send({ status: "already_processing", dataset_group_id: groupId, conversation_id: request.params.id, extractor_version: METADATA_EXTRACTOR_VERSION });
+    }
     await publishMetadataRequested(producer, event);
     return reply.code(202).send({ status: "queued", dataset_group_id: groupId, conversation_id: request.params.id, extractor_version: METADATA_EXTRACTOR_VERSION });
   });

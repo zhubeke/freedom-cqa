@@ -19,17 +19,17 @@ import { MetadataRepository } from "../../modules/conversation-metadata/adapters
 import { MetadataConsumer } from "../../modules/conversation-metadata/adapters/events/metadata-consumer.js";
 import { IngestionDispatchConsumer } from "../../modules/conversation-metadata/adapters/events/ingestion-dispatch-consumer.js";
 import { AUDIO_ANALYZED_TOPIC, AUDIO_REQUESTED_TOPIC, METADATA_COMPLETED_TOPIC, METADATA_REQUESTED_TOPIC, SENTIMENT_COMPLETED_TOPIC, SENTIMENT_REQUESTED_TOPIC } from "../../modules/conversation-metadata/adapters/events/topics.js";
-import { CloudflareGateway, createLlmLimiter } from "../../modules/llm-gateway/adapters/cloudflare-gateway.js";
+import { createLlmGateway } from "../../modules/llm-gateway/adapters/create-llm-gateway.js";
 import { publishPendingMetadataCompletions } from "../../modules/conversation-metadata/application/publish-pending.js";
 import { SentimentRepository } from "../../modules/conversation-metadata/adapters/persistence/sentiment-repository.js";
 import { SentimentConsumer } from "../../modules/conversation-metadata/adapters/events/sentiment-consumer.js";
-import { CloudflareCredentialPool } from "../../modules/llm-gateway/adapters/cloudflare-credential-pool.js";
 import { ClassificationRepository } from "../../modules/action-classification/adapters/persistence/classification-repository.js";
 import { ClassificationConsumer } from "../../modules/action-classification/adapters/events/classification-consumer.js";
 import { ClassificationTriggerConsumer } from "../../modules/action-classification/adapters/events/classification-trigger-consumer.js";
 import { ACTION_CLASSIFIED_TOPIC, CLASSIFICATION_REQUESTED_TOPIC } from "../../modules/action-classification/adapters/events/topics.js";
 import { TabPfnAdapter } from "../../modules/action-classification/adapters/tabpfn/tabpfn-adapter.js";
 import { publishPendingClassifications } from "../../modules/action-classification/application/publish-pending.js";
+import { AnalysisCoordinator } from "../../modules/analysis-jobs/application/analysis-coordinator.js";
 
 const config = loadConfig();
 const connections = createConnections(config);
@@ -48,9 +48,7 @@ const sentiments = new SentimentRepository(connections.mongodb.db);
 await sentiments.ensureIndexes();
 const classifications = new ClassificationRepository(connections.mongodb.db);
 await classifications.ensureIndexes();
-const llmGateway = config.llm.credentialPoolEnabled && config.llm.profiles?.some((profile) => profile.enabled)
-  ? new CloudflareCredentialPool(config.llm, fetch, config.llm.profiles, config.redis.url)
-  : new CloudflareGateway(config.llm, fetch, createLlmLimiter(config.llm));
+const llmGateway = createLlmGateway(config.llm, config.redis.url);
 const tabpfn = new TabPfnAdapter(config.tabpfn);
 
 const admin = connections.redpanda.kafka.admin();
@@ -77,6 +75,8 @@ await admin.disconnect();
 
 const producer = connections.redpanda.kafka.producer({ allowAutoTopicCreation: false });
 await producer.connect();
+const analysisCoordinator = new AnalysisCoordinator(connections.mongodb.db, producer, config);
+await analysisCoordinator.jobs.ensureIndexes();
 const consumer = new ImportConsumer(
   connections.redpanda.kafka.consumer({ groupId: config.kafka.consumerGroupId, retry: { retries: 8 } }),
   producer,
@@ -131,7 +131,7 @@ await classificationTriggerConsumer.start();
 
 let ready = true;
 const recovery = async () => {
-  try { await Promise.all([publishPendingImports(imports, producer), publishPendingEvaluations(evaluations, producer), publishPendingEvaluationCompletions(evaluations, producer), publishPendingBatches(batches, producer), publishPendingBatchCompletions(batches, producer), publishPendingMetadataCompletions(metadata, producer), publishPendingClassifications(classifications, producer), evaluationConsumer.recoverDeferredRetries()]); ready = true; }
+  try { await Promise.all([publishPendingImports(imports, producer), publishPendingEvaluations(evaluations, producer), publishPendingEvaluationCompletions(evaluations, producer), publishPendingBatches(batches, producer), publishPendingBatchCompletions(batches, producer), publishPendingMetadataCompletions(metadata, producer), publishPendingClassifications(classifications, producer), evaluationConsumer.recoverDeferredRetries()]); await analysisCoordinator.recover(); ready = true; }
   catch (error) { ready = false; console.error("Pending publication recovery failed", error); }
 };
 await recovery();

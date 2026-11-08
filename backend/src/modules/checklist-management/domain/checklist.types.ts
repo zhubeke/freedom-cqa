@@ -38,6 +38,8 @@ export interface ChecklistRecord {
   name: string;
   description: string;
   active_version_id: string | null;
+  /** Legacy checklists without this field are active. The selected version stays available while inactive. */
+  is_active?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -56,6 +58,9 @@ export interface ChecklistSummary extends ChecklistRecord {
   active_version_number: number | null;
   criterion_count: number;
   total_scoring_weight: number;
+  enabled_criterion_count: number;
+  can_delete: boolean;
+  can_deactivate: boolean;
 }
 
 export interface ChecklistRepository {
@@ -69,6 +74,7 @@ export interface ChecklistRepository {
   activateVersion(input: { checklistId: string; versionId: string; expectedActiveVersionId: string | null }): Promise<ChecklistRecord>;
   updateChecklist(input: { checklistId: string; expectedActiveVersionId: string; name: string; description: string; configuration: ChecklistConfiguration }): Promise<{ checklist: ChecklistRecord; version: ChecklistVersionRecord }>;
   deleteChecklist(id: string): Promise<boolean>;
+  setActive(id: string, isActive: boolean): Promise<ChecklistRecord>;
 }
 
 export class ChecklistError extends Error {

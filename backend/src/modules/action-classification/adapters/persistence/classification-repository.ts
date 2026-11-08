@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "mongodb";
-import { ACTION_FEATURE_VERSION, LABEL_POLICY_VERSION, type ActionCode, type ActionFeatures, type ClassificationEvent } from "../../application/action.types.js";
+import { ACTION_CODES, ACTION_FEATURE_VERSION, LABEL_POLICY_VERSION, type ActionCode, type ActionFeatures, type ClassificationEvent } from "../../application/action.types.js";
 
 export class ClassificationRepository {
   constructor(private readonly db: Db) {}
@@ -44,7 +44,14 @@ export class ClassificationRepository {
     const evaluation = await this.db.collection("evaluation_runs").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: "completed" }, { sort: { completed_at: -1 } });
     const criteria = evaluation ? await this.db.collection("criterion_evaluations").find({ evaluation_run_id: evaluation.run_id }).toArray() : [];
     const overrides = evaluation ? await this.db.collection("appeals").find({ evaluation_run_id: evaluation.run_id, status: "OVERRIDDEN" }).sort({ updated_at: 1 }).toArray() : [];
-    const effectiveCriteria = criteria.map((criterion) => { const appeal = [...overrides].reverse().find((item: any) => item.criterion_id === criterion.criterion_id); const rawValue = appeal?.decision?.effective_value; return appeal ? { ...criterion, raw_value: rawValue, is_na: rawValue === null } : criterion; });
+    const effectiveCriteria = criteria.map((criterion) => {
+      const appeal = [...overrides].reverse().find((item: any) => item.criterion_id === criterion.criterion_id);
+      const decision = appeal?.decision;
+      if (!decision || !("effective_value" in decision)) return criterion;
+      return { ...criterion, raw_value: decision.effective_value, is_na: decision.effective_value === null,
+        explanation: decision.effective_explanation ?? criterion.explanation,
+        evidence_message_ids: decision.effective_evidence_message_ids ?? criterion.evidence_message_ids };
+    });
     const audio = await this.db.collection("audio_metrics").findOne({ dataset_group_id: groupId, conversation_id: conversationId, status: { $in: ["completed", "partial"] } }, { sort: { processing_completed_at: -1 } });
     const effectiveEvaluation: any = evaluation ? { ...evaluation, final_score: evaluation.finalized_score ?? evaluation.final_score, critical_flag: evaluation.finalized_critical_flag ?? evaluation.critical_flag } : evaluation;
     return { metadata, evaluation: effectiveEvaluation, criteria: effectiveCriteria, audio };
@@ -64,11 +71,16 @@ export class ClassificationRepository {
       $setOnInsert: { label_id: randomUUID(), proposed_action: action, verified_action: null, verification_status: "PROPOSED", label_source: "deterministic_rules", features, source_result_id: resultId, created_at: now }, $set: { updated_at: now }
     }, { upsert: true });
   }
-  verifiedLabels() { return this.labels().find({ verification_status: "VERIFIED", verified_action: { $ne: null }, feature_version: ACTION_FEATURE_VERSION }).toArray(); }
+  verifiedLabels(exclude?: { datasetGroupId: string; conversationId: string }) {
+    return this.labels().find({ verification_status: "VERIFIED", verified_action: { $in: [...ACTION_CODES] },
+      feature_version: ACTION_FEATURE_VERSION, label_policy_version: LABEL_POLICY_VERSION,
+      ...(exclude ? { $nor: [{ dataset_group_id: exclude.datasetGroupId, conversation_id: exclude.conversationId }] } : {})
+    }).toArray();
+  }
   listLabels(filter: Record<string, unknown>, limit = 100) { return this.labels().find(filter, { projection: { _id: 0 } }).sort({ updated_at: -1 }).limit(limit).toArray(); }
   verifyLabel(labelId: string, action: ActionCode, reviewer: string) { return this.labels().findOneAndUpdate({ label_id: labelId }, { $set: { verified_action: action, verification_status: "VERIFIED", label_source: "human_review", verified_by: reviewer, verified_at: new Date(), updated_at: new Date() } }, { returnDocument: "after", projection: { _id: 0 } }); }
-  readyModel(datasetVersion: string) { return this.models().findOne({ feature_version: ACTION_FEATURE_VERSION, training_dataset_version: datasetVersion, status: "completed" }, { sort: { created_at: -1 } }); }
-  latestModel(datasetVersion: string) { return this.models().findOne({ feature_version: ACTION_FEATURE_VERSION, training_dataset_version: datasetVersion }, { sort: { created_at: -1 } }); }
+  readyModel(datasetVersion: string, providerModelId: string) { return this.models().findOne({ feature_version: ACTION_FEATURE_VERSION, training_dataset_version: datasetVersion, provider_model_id: providerModelId, status: "completed" }, { sort: { created_at: -1 } }); }
+  latestModel(datasetVersion: string, providerModelId: string) { return this.models().findOne({ feature_version: ACTION_FEATURE_VERSION, training_dataset_version: datasetVersion, provider_model_id: providerModelId }, { sort: { created_at: -1 } }); }
   async saveModel(document: Record<string, unknown>) { await this.models().updateOne({ feature_version: ACTION_FEATURE_VERSION, training_dataset_version: document.training_dataset_version, provider_model_id: document.provider_model_id }, { $set: { ...document, updated_at: new Date() }, $setOnInsert: { created_at: new Date() } }, { upsert: true }); }
   async pendingPublications() { return this.results().find({ completion_publication_status: "pending", status: { $in: ["completed", "fallback"] } }).toArray(); }
   markPublished(resultId: string) { return this.results().updateOne({ result_id: resultId }, { $set: { completion_publication_status: "published", updated_at: new Date() } }); }

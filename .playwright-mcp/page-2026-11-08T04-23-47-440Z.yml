@@ -1,0 +1,291 @@
+- generic [ref=f4e3]:
+  - banner [ref=f4e4]:
+    - generic [ref=f4e5]:
+      - link "CQA home" [ref=f4e6] [cursor=pointer]:
+        - /url: /conversations
+        - generic [ref=f4e7]: CQA
+      - button "Open navigation" [ref=f4e9] [cursor=pointer]
+  - main [ref=f4e11]:
+    - generic [ref=f4e12]:
+      - generic [ref=f4e13]:
+        - button "Back to previous page" [ref=f4e14] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f4e18]: Back
+        - generic [ref=f4e20]:
+          - heading "p1-en-006" [level=1] [ref=f4e21]
+          - paragraph [ref=f4e22]: Chat · EN · 30 messages · Active
+        - generic [ref=f4e23]:
+          - group [ref=f4e24]:
+            - generic "Evaluation, Recommended follow-up, Sentiment timeline needs retry" [ref=f4e25] [cursor=pointer]
+          - button "Retry failed analyses" [ref=f4e26] [cursor=pointer]
+          - button "Export JSON" [ref=f4e30] [cursor=pointer]
+      - generic [ref=f4e34]:
+        - region [ref=f4e36]:
+          - generic [ref=f4e37]:
+            - heading "Transcript" [level=2] [ref=f4e38]
+            - paragraph [ref=f4e39]: 30 messages · Source order
+          - generic "Transcript messages" [ref=f4e40]:
+            - article [ref=f4e41]:
+              - generic [ref=f4e42]:
+                - generic [ref=f4e43]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e47]: ·
+                  - time [ref=f4e48]: 00:00
+                - paragraph [ref=f4e50]: I sent money to my brokerage account and it hasn't shown up. It's making me nervous.
+            - article [ref=f4e51]:
+              - generic [ref=f4e52]:
+                - generic [ref=f4e53]:
+                  - text: Bot
+                  - generic [aria-hidden] [ref=f4e57]: ·
+                  - time [ref=f4e58]: 00:03
+                - paragraph [ref=f4e60]: Hello! I'm AIM, the Freedom Broker AI assistant. I can answer questions about products and services, provide information about your accounts, assets and fees, compare information in a table, share your account manager's contact details, and pass your question to our support team.
+            - article [ref=f4e61]:
+              - generic [ref=f4e62]:
+                - generic [ref=f4e63]:
+                  - text: Bot
+                  - generic [aria-hidden] [ref=f4e67]: ·
+                  - time [ref=f4e68]: 00:03
+                - paragraph [ref=f4e70]: By continuing this conversation, you agree to the collection and processing of your personal data and confirm that you have read the company's Privacy Policy.
+            - article [ref=f4e71]:
+              - generic [ref=f4e72]:
+                - generic [ref=f4e73]:
+                  - text: Bot
+                  - generic [aria-hidden] [ref=f4e77]: ·
+                  - time [ref=f4e78]: 00:13
+                - paragraph [ref=f4e80]: Do you need help making a transfer, or have you already sent it?
+            - article [ref=f4e81]:
+              - generic [ref=f4e82]:
+                - generic [ref=f4e83]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e87]: ·
+                  - time [ref=f4e88]: 00:52
+                - paragraph [ref=f4e90]: I've already sent it. Please connect me to an agent who can check the transfer.
+            - article [ref=f4e91]:
+              - generic [ref=f4e92]:
+                - generic [ref=f4e93]:
+                  - text: Bot
+                  - generic [aria-hidden] [ref=f4e97]: ·
+                  - time [ref=f4e98]: 00:54
+                - paragraph [ref=f4e100]: Would you like me to connect you with an agent?
+            - article [ref=f4e101]:
+              - generic [ref=f4e102]:
+                - generic [ref=f4e103]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e107]: ·
+                  - time [ref=f4e108]: 01:14
+                - paragraph [ref=f4e110]: "Yes"
+            - article [ref=f4e111]:
+              - generic [ref=f4e112]:
+                - generic [ref=f4e113]:
+                  - text: Bot
+                  - generic [aria-hidden] [ref=f4e117]: ·
+                  - time [ref=f4e118]: 01:15
+                - paragraph [ref=f4e120]: Please wait. An agent will join the chat shortly.
+            - generic "Chat transferred to an agent. · 01:16" [ref=f4e122]: "Original timestamp: 01:16"
+            - article [ref=f4e127]:
+              - generic [ref=f4e128]:
+                - generic [ref=f4e129]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e133]: ·
+                  - time [ref=f4e134]: 01:36
+                - paragraph [ref=f4e136]: The bank app says the transfer was sent.
+            - article [ref=f4e137]:
+              - generic [ref=f4e138]:
+                - generic [ref=f4e139]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e142]: ·
+                  - time [ref=f4e143]: 02:43
+                - paragraph [ref=f4e145]: Hello, I'm Sam. I understand why you'd want to check. We'll need to verify your identity before we look at the account.
+            - article [ref=f4e146]:
+              - generic [ref=f4e147]:
+                - generic [ref=f4e148]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e152]: ·
+                  - time [ref=f4e153]: 02:55
+                - paragraph [ref=f4e155]: Okay.
+            - generic "Customer identity verified. · 03:13" [ref=f4e157]: "Original timestamp: 03:13"
+            - article [ref=f4e162]:
+              - generic [ref=f4e163]:
+                - generic [ref=f4e164]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e167]: ·
+                  - time [ref=f4e168]: 03:40
+                - paragraph [ref=f4e170]: Thanks. What currency did you send?
+            - article [ref=f4e171]:
+              - generic [ref=f4e172]:
+                - generic [ref=f4e173]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e177]: ·
+                  - time [ref=f4e178]: 04:10
+                - paragraph [ref=f4e180]: US dollars.
+            - article [ref=f4e181]:
+              - generic [ref=f4e182]:
+                - generic [ref=f4e183]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e186]: ·
+                  - time [ref=f4e187]: 04:58
+                - paragraph [ref=f4e189]: I've sent the case for review with the currency you provided. We'll follow up in this chat once there's an update.
+            - article [ref=f4e190]:
+              - generic [ref=f4e191]:
+                - generic [ref=f4e192]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e196]: ·
+                  - time [ref=f4e197]: 05:04
+                - paragraph [ref=f4e199]: Okay, thanks.
+            - article [ref=f4e200]:
+              - generic [ref=f4e201]:
+                - generic [ref=f4e202]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e206]: ·
+                  - time [ref=f4e207]: 05:16
+                - paragraph [ref=f4e209]: Do you need me to send a screenshot of my bank app?
+            - article [ref=f4e210]:
+              - generic [ref=f4e211]:
+                - generic [ref=f4e212]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e215]: ·
+                  - time [ref=f4e216]: 05:40
+                - paragraph [ref=f4e218]: Hold off on the screenshot for now. Can you tell me roughly when you sent the transfer?
+            - article [ref=f4e219]:
+              - generic [ref=f4e220]:
+                - generic [ref=f4e221]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e225]: ·
+                  - time [ref=f4e226]: 06:04
+                - paragraph [ref=f4e228]: Yesterday evening. It shows as sent on the bank side.
+            - article [ref=f4e229]:
+              - generic [ref=f4e230]:
+                - generic [ref=f4e231]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e234]: ·
+                  - time [ref=f4e235]: 06:49
+                - paragraph [ref=f4e237]: I've added that timing to the case. The team will check the brokerage side.
+            - article [ref=f4e238]:
+              - generic [ref=f4e239]:
+                - generic [ref=f4e240]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e244]: ·
+                  - time [ref=f4e245]: 07:25
+                - paragraph [ref=f4e247]: Will I need to explain everything again if I come back later?
+            - article [ref=f4e248]:
+              - generic [ref=f4e249]:
+                - generic [ref=f4e250]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e253]: ·
+                  - time [ref=f4e254]: 07:54
+                - paragraph [ref=f4e256]: You can return to this chat. The details you've given me are already in the case.
+            - article [ref=f4e257]:
+              - generic [ref=f4e258]:
+                - generic [ref=f4e259]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e263]: ·
+                  - time [ref=f4e264]: 08:06
+                - paragraph [ref=f4e266]: Okay, that helps.
+            - article [ref=f4e267]:
+              - generic [ref=f4e268]:
+                - generic [ref=f4e269]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e273]: ·
+                  - time [ref=f4e274]: 09:11
+                - paragraph [ref=f4e276]: One more thing while I'm here. Where can I download my broker report?
+            - article [ref=f4e277]:
+              - generic [ref=f4e278]:
+                - generic [ref=f4e279]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e282]: ·
+                  - time [ref=f4e283]: 09:43
+                - paragraph [ref=f4e285]: In the app, open Reports and Documents, then Broker Report.
+            - article [ref=f4e286]:
+              - generic [ref=f4e287]:
+                - generic [ref=f4e288]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e292]: ·
+                  - time [ref=f4e293]: 10:00
+                - paragraph [ref=f4e295]: I've got the dates on screen. Can I pick the whole month?
+            - article [ref=f4e296]:
+              - generic [ref=f4e297]:
+                - generic [ref=f4e298]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e301]: ·
+                  - time [ref=f4e302]: 10:34
+                - paragraph [ref=f4e304]: Yes, select the start and end dates for the period you need, then download the report.
+            - article [ref=f4e305]:
+              - generic [ref=f4e306]:
+                - generic [ref=f4e307]:
+                  - text: Client
+                  - generic [aria-hidden] [ref=f4e311]: ·
+                  - time [ref=f4e312]: 10:53
+                - paragraph [ref=f4e314]: That worked. I'll wait here for the transfer update.
+            - article [ref=f4e315]:
+              - generic [ref=f4e316]:
+                - generic [ref=f4e317]:
+                  - text: Operator
+                  - generic [aria-hidden] [ref=f4e320]: ·
+                  - time [ref=f4e321]: 11:29
+                - paragraph [ref=f4e323]: You're welcome. We'll follow up here about the transfer. Goodbye!
+        - region "Conversation analysis" [ref=f4e324]:
+          - generic [ref=f4e325]:
+            - generic [ref=f4e326]:
+              - heading "Analysis" [level=2] [ref=f4e327]
+              - paragraph [ref=f4e328]: Key results and what needs attention.
+            - group "Analysis view" [ref=f4e329]:
+              - button "Simple" [pressed] [ref=f4e330] [cursor=pointer]
+              - button "Advanced" [ref=f4e331] [cursor=pointer]
+          - generic "Evaluation summary" [ref=f4e332]:
+            - generic [ref=f4e333]:
+              - generic [ref=f4e334]: Overall score
+              - strong [ref=f4e335]: "60.00"
+              - generic [ref=f4e336]: / 100
+            - generic [ref=f4e337]:
+              - generic [ref=f4e338]: completed
+              - generic [ref=f4e339]: 4 passed · 0 partial · 3 failed / 7 applicable
+              - generic [ref=f4e340]: No severe violations
+          - generic [ref=f4e341]:
+            - region [ref=f4e343]:
+              - generic [ref=f4e344]:
+                - heading "What needs attention" [level=2] [ref=f4e346]
+                - button "Evaluate" [ref=f4e347] [cursor=pointer]
+              - generic [ref=f4e350]:
+                - generic [ref=f4e351]:
+                  - group [ref=f4e352]:
+                    - generic "Needs attention. Establishing Contact No 0 / 10" [ref=f4e353] [cursor=pointer]:
+                      - generic [ref=f4e354]: Needs attention.
+                      - generic [ref=f4e358]: Establishing Contact
+                      - generic [ref=f4e359]: "No"
+                      - generic "Earned points / available weight" [ref=f4e360]: 0 / 10
+                  - group [ref=f4e363]:
+                    - generic "Needs attention. Identifying Customer Needs No 0 / 15" [ref=f4e364] [cursor=pointer]:
+                      - generic [ref=f4e365]: Needs attention.
+                      - generic [ref=f4e369]: Identifying Customer Needs
+                      - generic [ref=f4e370]: "No"
+                      - generic "Earned points / available weight" [ref=f4e371]: 0 / 15
+                  - group [ref=f4e374]:
+                    - generic "Needs attention. Empathy and Customer Orientation No 0 / 15" [ref=f4e375] [cursor=pointer]:
+                      - generic [ref=f4e376]: Needs attention.
+                      - generic [ref=f4e380]: Empathy and Customer Orientation
+                      - generic [ref=f4e381]: "No"
+                      - generic "Earned points / available weight" [ref=f4e382]: 0 / 15
+                - paragraph [ref=f4e385]: 4 passed. Switch to Advanced to review every criterion.
+            - region [ref=f4e387]:
+              - generic [ref=f4e388]:
+                - generic [ref=f4e389]:
+                  - paragraph [ref=f4e390]: Recommended follow-up
+                  - heading "Operator coaching" [level=2] [ref=f4e391]
+                - button "Refresh" [ref=f4e392] [cursor=pointer]
+              - generic [ref=f4e398]:
+                - paragraph [ref=f4e399]: Supporting evidence
+                - button "Evidence 1" [ref=f4e401] [cursor=pointer]
+            - region [ref=f4e402]:
+              - heading "Conversation outcome" [level=3] [ref=f4e403]
+              - generic [ref=f4e404]:
+                - generic [ref=f4e405]:
+                  - term [ref=f4e406]: Customer request
+                  - definition [ref=f4e407]: account access problem
+                - generic [ref=f4e408]:
+                  - term [ref=f4e409]: Resolution
+                  - definition [ref=f4e410]: partially resolved
+                - generic [ref=f4e411]:
+                  - term [ref=f4e412]: Customer sentiment
+                  - definition [ref=f4e413]: negative → neutral
+                - generic [ref=f4e414]:
+                  - term [ref=f4e415]: Follow-up
+                  - definition [ref=f4e416]: Callback promised

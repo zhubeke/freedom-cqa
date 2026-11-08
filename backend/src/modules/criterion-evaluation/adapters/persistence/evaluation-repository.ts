@@ -16,6 +16,7 @@ export class EvaluationRepository {
       ),
       this.runs().createIndex({ publication_status: 1, status: 1 }, { name: "evaluation_publication_recovery" }),
       this.runs().createIndex({ active_key: 1 }, { unique: true, sparse: true, name: "active_evaluation_unique" }),
+      this.runs().createIndex({ request_key: 1 }, { unique: true, sparse: true, name: "evaluation_request_unique" }),
       this.criteria().createIndex({ evaluation_run_id: 1, criterion_id: 1 }, { unique: true, name: "run_criterion_unique" })
     ]);
   }
@@ -30,19 +31,20 @@ export class EvaluationRepository {
     const appeals = await this.db.collection("appeals").find({ evaluation_run_id: runId }, { projection: { _id: 0 } }).sort({ created_at: 1 }).toArray();
     return { ...publicRun, appeals, criteria: criteria.map(({ _id: criterionDocumentId, ...item }) => { void criterionDocumentId; return item; }) };
   }
-  async history(conversationId: string) {
-    const runs = await this.runs().find({ conversation_id: conversationId }).sort({ requested_at: -1 }).limit(25).toArray();
+  async history(conversationId: string, datasetGroupId?: string) {
+    const runs = await this.runs().find({ conversation_id: conversationId, ...(datasetGroupId ? { dataset_group_id: datasetGroupId } : {}) }).sort({ requested_at: -1 }).limit(25).toArray();
     return Promise.all(runs.map((run) => this.findFullRun(run.run_id)));
   }
-  async activeDuplicate(conversationId: string, checklistVersionId: string, modelId?: string, promptVersion?: string) {
+  async activeDuplicate(conversationId: string, checklistVersionId: string, modelId?: string, promptVersion?: string, datasetGroupId?: string) {
     return this.runs().findOne({
       conversation_id: conversationId, checklist_version_id: checklistVersionId,
       ...(modelId ? { model_id: modelId } : {}), ...(promptVersion ? { prompt_version: promptVersion } : {}),
-      status: { $in: ["queued", "processing"] }
+      ...(datasetGroupId ? { dataset_group_id: datasetGroupId } : {}),
+      status: { $in: ["queued", "processing", "waiting"] }
     });
   }
-  reusable(conversationId: string, checklistVersionId: string, modelId: string, promptVersion: string, inputFingerprint: string) {
-    return this.runs().findOne({ conversation_id: conversationId, checklist_version_id: checklistVersionId, model_id: modelId, prompt_version: promptVersion, input_fingerprint: inputFingerprint, status: "completed" }, { sort: { completed_at: -1 } });
+  reusable(conversationId: string, checklistVersionId: string, modelId: string, promptVersion: string, inputFingerprint: string, datasetGroupId?: string) {
+    return this.runs().findOne({ conversation_id: conversationId, checklist_version_id: checklistVersionId, model_id: modelId, prompt_version: promptVersion, input_fingerprint: inputFingerprint, ...(datasetGroupId ? { dataset_group_id: datasetGroupId } : {}), status: "completed" }, { sort: { completed_at: -1 } });
   }
   async createRun(input: Omit<EvaluationRunDocument, "_id" | "run_id" | "event_id" | "correlation_id">) {
     const runId = randomUUID(); const eventId = randomUUID();

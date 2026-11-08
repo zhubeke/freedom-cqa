@@ -9,8 +9,9 @@ export interface CriterionEvaluation {
 export interface EvaluationRun {
   run_id: string; conversation_id: string; dataset_group_id: string; checklist_id: string; checklist_version_id: string;
   model_id: string; status: EvaluationStatus; total_criteria: number; completed_criteria: number; requested_at: string;
-  started_at: string | null; completed_at: string | null; error: string | null; error_category: string | null; final_score: number | null;
+  started_at: string | null; completed_at: string | null; next_retry_at?: string | null; error: string | null; error_category: string | null; final_score: number | null;
   critical_flag: boolean | null; finalized_score?: number | null; finalized_critical_flag?: boolean | null; finalized_at?: string | null; criteria: CriterionEvaluation[];
   appeals?: import("./appeal").Appeal[];
+  checklist_snapshot?: { sections: import("./checklist").ChecklistSection[]; criteria: import("./checklist").ChecklistCriterion[] };
 }
 export interface StartEvaluationResponse { evaluation_run_id: string; status: EvaluationStatus; duplicate: boolean }

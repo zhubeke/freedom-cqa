@@ -8,6 +8,8 @@ import { listChecklistVersions } from "../../application/list-checklist-versions
 import { listChecklists } from "../../application/list-checklists.js";
 import { updateChecklist } from "../../application/update-checklist.js";
 import { deleteChecklist } from "../../application/delete-checklist.js";
+import { setChecklistActive } from "../../application/set-checklist-active.js";
+import { duplicateChecklist } from "../../application/duplicate-checklist.js";
 import { ChecklistError } from "../../domain/checklist.types.js";
 import { MongoChecklistRepository } from "../persistence/checklist-repository.js";
 import {
@@ -24,6 +26,20 @@ export async function registerChecklistManagementRoutes(app: FastifyInstance, db
   const repository = new MongoChecklistRepository(db);
 
   app.get("/api/v1/checklists", async () => listChecklists(repository));
+
+  app.post<{ Params: { id: string }; Body: { is_active: boolean } }>("/api/v1/checklists/:id/status", {
+    schema: { params: IdParamsSchema, body: { type: "object", required: ["is_active"], properties: { is_active: { type: "boolean" } }, additionalProperties: false } }
+  }, async (request, reply) => {
+    try { return await setChecklistActive(repository, request.params.id, request.body.is_active); }
+    catch (error) { return sendError(reply, error); }
+  });
+
+  app.post<{ Params: { id: string }; Body: { name?: string } }>("/api/v1/checklists/:id/duplicate", {
+    schema: { params: IdParamsSchema, body: { type: "object", properties: { name: { type: "string", minLength: 1 } }, additionalProperties: false } }
+  }, async (request, reply) => {
+    try { return reply.code(201).send(await duplicateChecklist(repository, request.params.id, request.body?.name)); }
+    catch (error) { return sendError(reply, error); }
+  });
 
   app.post<{ Body: CreateChecklistBody }>("/api/v1/checklists", { schema: { body: CreateChecklistBodySchema } }, async (request, reply) => {
     try {

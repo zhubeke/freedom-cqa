@@ -30,6 +30,16 @@ CLOUDFLARE_API_TOKEN=your_api_token
 
 The application can start without valid Cloudflare credentials, but evaluations that use Workers AI will fail. Audio analysis also requires `HF_TOKEN` with access to the configured Pyannote model. TabPFN is optional and disabled by default.
 
+The default language model is `@cf/meta/llama-3.1-8b-instruct-fp8-fast`. Its listed input and output rates are substantially lower than the 70B model; see [Cloudflare pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/). Existing `.env` files should set both `CLOUDFLARE_MODEL` and `CQA_CF_MODEL_ID` to this model.
+
+For an optional DeepSeek fallback, set `CQA_DEEPSEEK_FALLBACK_ENABLED=true` and `DEEPSEEK_API_KEY` in the untracked `.env` file. Cloudflare remains primary. Provider failures (including quota, permissions, rate limits, network errors and timeouts) automatically try DeepSeek. Criterion results that still fail validation after a repair attempt also try DeepSeek, with the same scoring and evidence checks. Successful criteria are preserved. If both providers fail, the existing retry/error flow applies. Each criterion records the model that actually produced its answer.
+
+The fallback uses `deepseek-flash` and the official [DeepSeek chat completions API](https://api-docs.deepseek.com/api/create-chat-completion/) with JSON output and thinking disabled. `DEEPSEEK_MODEL`, `CQA_DEEPSEEK_TIMEOUT_MS`, `CQA_DEEPSEEK_MAX_CONCURRENCY`, and `CQA_DEEPSEEK_REQUESTS_PER_MINUTE` can override its defaults. After changing configuration, rebuild/restart the pipeline worker. Run `npm run llm:check -- --fallback` from `backend` to verify DeepSeek independently, or `npm run llm:check` to check the primary/fallback chain. Keys are never included in committed examples or provider error messages.
+
+To use DeepSeek first, set `CQA_LLM_PROVIDER=deepseek` with `DEEPSEEK_API_KEY`. DeepSeek becomes the primary provider and Cloudflare becomes the backup for service errors or invalid criterion results. New runs use `DEEPSEEK_MODEL` as their requested model; `CLOUDFLARE_MODEL` and the Cloudflare profiles retain their separate model settings for fallback requests.
+
+TabPFN trains on human-verified samples stored in MongoDB's `classification_labels` collection. It requires at least 12 eligible samples across two or more action classes, with at least three samples per class. The conversation being classified is excluded from its training samples. Incomplete or outdated feature snapshots are excluded too. Until enough reviewed samples exist, recommendations use the local rules and show why TabPFN is unavailable. The app does not generate training examples to fill gaps.
+
 ### 2. Build and start
 
 ```sh

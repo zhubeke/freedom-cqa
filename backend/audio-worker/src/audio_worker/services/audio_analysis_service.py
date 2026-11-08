@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 
 from audio_worker.config import Settings
+from audio_worker.analyzer import analyze as analyze_mixed_audio
 from audio_worker.diarization.diarization_service import DiarizationService
 from audio_worker.diarization.speaker_mapper import apply_mapping, map_speakers
 from audio_worker.diarization.transcript_alignment import align_transcript
@@ -29,6 +30,28 @@ class AudioAnalysisService:
         raw = json.dumps({"source": source_hash, "model": self.settings.model_id, "revision": self.settings.model_revision, "schema": self.settings.schema_version, "analyzer": self.settings.analyzer_version, "min_overlap": self.settings.min_overlap_seconds}, sort_keys=True)
         return hashlib.sha256(raw.encode()).hexdigest()
 
+    @staticmethod
+    def _mixed_recording_metrics(samples: np.ndarray, sample_rate: int) -> dict[str, Any]:
+        mixed = analyze_mixed_audio(samples, sample_rate)
+        return {
+            "recording_duration_seconds": mixed["duration_seconds"],
+            "sample_rate_hz": sample_rate,
+            "detected_speaker_count": None,
+            "total_speech_seconds": mixed["speech_duration_seconds"],
+            "total_silence_seconds": mixed["silence_duration_seconds"],
+            "speech_ratio": mixed["speech_activity_ratio"],
+            "silence_ratio": mixed["silence_ratio"],
+            "total_overlap_seconds": None,
+            "overlap_ratio": None,
+            "longest_silence_seconds": mixed["longest_silence_seconds"],
+            "speech_segment_count": mixed["speech_segment_count"],
+            "interruption_count_estimate": None,
+            "rms_dbfs": mixed["rms_dbfs"],
+            "peak_dbfs": mixed["peak_dbfs"],
+            "loudness_variability": mixed["loudness_variability"],
+            "limitations": mixed["limitations"],
+        }
+
     def analyze(self, event: AudioRequestedEvent) -> AudioAnalysisResult:
         conversation = self.repository.conversation(event)
         if not conversation: raise AudioPipelineError(AudioErrorCode.NOT_AVAILABLE, "Conversation does not exist")
@@ -46,7 +69,31 @@ class AudioAnalysisService:
             self.repository.mark_processing(event, fingerprint)
             tick=time.perf_counter(); source_metadata=validate_audio(source, self.settings); raw_samples,raw_rate,raw_channels=decode_raw_audio(source,raw_decoded); samples, sample_rate=normalize_audio(source, normalized); timings["decode_duration_seconds"]=time.perf_counter()-tick
             duration=len(samples)/sample_rate
-            tick=time.perf_counter(); diarized, exclusive=self.diarization.analyze(normalized, duration); timings["diarization_duration_seconds"]=time.perf_counter()-tick
+            tick=time.perf_counter()
+            try:
+                diarized, exclusive=self.diarization.analyze(normalized, duration)
+            except AudioPipelineError as exc:
+                if exc.code != AudioErrorCode.MODEL_UNAVAILABLE:
+                    raise
+                timings["diarization_duration_seconds"]=time.perf_counter()-tick
+                recording=self._mixed_recording_metrics(raw_samples, raw_rate)
+                return AudioAnalysisResult(
+                    dataset_group_id=event.dataset_group_id, conversation_id=event.conversation_id,
+                    analysis_run_id=event.analysis_run_id or str(uuid.uuid4()), status="partial",
+                    schema_version=self.settings.schema_version, source_audio_hash=source_hash,
+                    source_audio_reference="conversation.audio_url" if not event.audio_reference else "event.audio_reference",
+                    analysis_fingerprint=fingerprint, model_id="mixed-audio-fallback", model_revision="1",
+                    analyzer_version=self.settings.analyzer_version, processing_started_at=started,
+                    processing_completed_at=datetime.now(timezone.utc),
+                    audio_metadata={**source_metadata, "decoded_sample_rate_hz":raw_rate, "decoded_channel_count":raw_channels, "canonical_sample_rate_hz":sample_rate, "canonical_channel_count":1, "loudness_measurement_view":"raw_decoded_mono_mix_without_gain_normalization"},
+                    recording_metrics=recording, speaker_metrics=[], role_summary={}, diarization_segments=[],
+                    exclusive_diarization_segments=[], overlap_segments=[], interruption_events=[],
+                    transcript_alignments=[], role_mapping={},
+                    quality_indicators={"alignment_confidence":None, "alignment_coverage":0, "role_mapping_uncertain":True, "dBFS_is_uncalibrated":True, "diarization_available":False},
+                    processing_statistics={**timings, "total_processing_duration_seconds":(datetime.now(timezone.utc)-started).total_seconds()},
+                    errors=[{"code":exc.code.value, "message":"Speaker diarization model unavailable; mixed-audio metrics were calculated instead."}],
+                )
+            timings["diarization_duration_seconds"]=time.perf_counter()-tick
             tick=time.perf_counter(); recording, speakers, overlap, interruptions=calculate_metrics(samples, sample_rate, duration, diarized, self.settings.min_overlap_seconds); timings["metric_extraction_duration_seconds"]=time.perf_counter()-tick
             recording.update(loudness(np.mean(raw_samples,axis=1),raw_rate))
             alignments=align_transcript(conversation.get("transcript", []), exclusive, duration)

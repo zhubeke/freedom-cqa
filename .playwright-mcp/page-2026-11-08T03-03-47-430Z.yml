@@ -1,0 +1,40 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - link "CQA home" [ref=f1e6] [cursor=pointer]:
+        - /url: /conversations
+        - generic [ref=f1e7]:
+          - generic [ref=f1e8]: CQA
+          - generic [ref=f1e9]: Conversation quality
+      - navigation "Main navigation" [ref=f1e10]:
+        - link "Conversations" [ref=f1e11] [cursor=pointer]:
+          - /url: /conversations
+        - link "Dashboard" [ref=f1e15] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Appeals" [ref=f1e18] [cursor=pointer]:
+          - /url: /reviews
+        - link "Checklists" [ref=f1e23] [cursor=pointer]:
+          - /url: /checklists
+  - main [ref=f1e27]:
+    - generic [ref=f1e28]:
+      - generic [ref=f1e29]:
+        - link "Back to checklists" [ref=f1e30] [cursor=pointer]:
+          - /url: /checklists
+        - generic [ref=f1e33]:
+          - generic [ref=f1e34]:
+            - heading "Edit checklist" [level=1] [ref=f1e35]
+            - paragraph [ref=f1e36]: Changes apply directly to future evaluations. Existing reports retain their original checklist snapshot.
+          - button "Save changes" [disabled] [ref=f1e37]
+      - generic [ref=f1e42]:
+        - generic [ref=f1e43]:
+          - generic [ref=f1e44]: Criteria
+          - strong [ref=f1e45]: "8"
+        - generic [ref=f1e46]:
+          - generic [ref=f1e47]: Scoring criteria
+          - strong [ref=f1e48]: "7"
+        - generic [ref=f1e49]:
+          - generic [ref=f1e50]: Total weight
+          - strong [ref=f1e51]: 100 / 100
+        - generic [ref=f1e52]:
+          - generic [ref=f1e53]: N/A enabled
+          - strong [ref=f1e54]: "4"

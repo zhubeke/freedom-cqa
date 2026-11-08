@@ -9,6 +9,7 @@ export interface EvaluationRunDocument {
   event_id: string; correlation_id: string; publication_status: "pending" | "published"; publication_attempts: number;
   criteria_dispatched: boolean; active_key?: string;
   prompt_version?: string; input_fingerprint?: string; batch_id?: string;
+  request_key?: string;
   completion_publication_status?: "pending" | "published";
   next_retry_at?: Date | null;
   checklist_snapshot?: { sections: unknown[]; criteria: unknown[] };

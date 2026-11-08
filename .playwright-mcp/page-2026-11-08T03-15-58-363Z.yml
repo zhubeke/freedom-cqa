@@ -1,0 +1,120 @@
+- generic [ref=f8e3]:
+  - banner [ref=f8e4]:
+    - generic [ref=f8e5]:
+      - link "CQA home" [ref=f8e6] [cursor=pointer]:
+        - /url: /conversations
+        - generic [ref=f8e7]:
+          - generic [ref=f8e8]: CQA
+          - generic [ref=f8e9]: Conversation quality
+      - navigation "Main navigation" [ref=f8e10]:
+        - link "Conversations" [ref=f8e11] [cursor=pointer]:
+          - /url: /conversations
+        - link "Dashboard" [ref=f8e15] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Appeals" [ref=f8e18] [cursor=pointer]:
+          - /url: /reviews
+        - link "Checklists" [ref=f8e23] [cursor=pointer]:
+          - /url: /checklists
+  - main [ref=f8e27]:
+    - generic [ref=f8e28]:
+      - generic [ref=f8e29]:
+        - generic [ref=f8e30]:
+          - heading "Appeal reviews" [level=1] [ref=f8e31]
+          - paragraph [ref=f8e32]: Compare evaluations, inspect evidence, and record a clear decision.
+        - button "Refresh" [ref=f8e33] [cursor=pointer]
+      - generic [ref=f8e39]:
+        - generic [ref=f8e40]:
+          - term [ref=f8e41]: Total appeals
+          - definition [ref=f8e42]: "3"
+        - generic [ref=f8e43]:
+          - term [ref=f8e44]: Pending reviews
+          - definition [ref=f8e45]: "3"
+        - generic [ref=f8e46]:
+          - term [ref=f8e47]: Completed decisions
+          - definition [ref=f8e48]: "0"
+      - generic [ref=f8e49]:
+        - complementary "Appeal queue" [ref=f8e50]:
+          - generic [ref=f8e51]:
+            - searchbox "Search by criterion or conversation ID" [ref=f8e53]
+            - group "Filter appeal queue" [ref=f8e54]:
+              - button "All" [pressed] [ref=f8e55] [cursor=pointer]
+              - button "To do" [ref=f8e56] [cursor=pointer]
+              - button "Done" [ref=f8e57] [cursor=pointer]
+            - generic [ref=f8e58]:
+              - text: Sort
+              - combobox "Sort appeal queue" [ref=f8e59] [cursor=pointer]:
+                - option "Submission date · newest" [selected]
+                - option "Submission date · oldest"
+                - option "Priority · highest"
+                - option "Workflow status"
+          - generic [ref=f8e60]:
+            - button "Establishing Contact p1-en-001 · Nov 8, 2026 Pending" [ref=f8e61] [cursor=pointer]:
+              - paragraph [ref=f8e62]: Establishing Contact
+              - paragraph [ref=f8e63]: p1-en-001 · Nov 8, 2026
+              - generic [ref=f8e64]: Pending
+            - button "Dialogue Management, Speed and Clarity p1-en-001 · Nov 8, 2026 Pending" [ref=f8e66] [cursor=pointer]:
+              - paragraph [ref=f8e67]: Dialogue Management, Speed and Clarity
+              - paragraph [ref=f8e68]: p1-en-001 · Nov 8, 2026
+              - generic [ref=f8e69]: Pending
+            - button "Correct and Complete Consultation p1-en-001 · Nov 8, 2026 Pending" [active] [pressed] [ref=f8e71] [cursor=pointer]:
+              - paragraph [ref=f8e72]: Correct and Complete Consultation
+              - paragraph [ref=f8e73]: p1-en-001 · Nov 8, 2026
+              - generic [ref=f8e74]: Pending
+        - article [ref=f8e76]:
+          - generic [ref=f8e78]:
+            - generic [ref=f8e79]:
+              - heading "Correct and Complete Consultation" [level=2] [ref=f8e142]
+              - paragraph [ref=f8e81]: "Conversation: p1-en-001 · Submitted Nov 8, 2026"
+              - generic [ref=f8e82]: Pending
+            - link "Open conversation" [ref=f8e84] [cursor=pointer]:
+              - /url: /conversations/p1-en-001?datasetGroupId=DEV&from=/reviews?appeal=0c2b6c70-3b8b-4d84-84d9-8a8a7a6e6054
+          - generic [ref=f8e89]:
+            - generic [ref=f8e90]:
+              - heading "Reason for appeal" [level=3] [ref=f8e91]
+              - paragraph [ref=f8e92]: "UX QA 04: Please review against transcript."
+            - region "Original and final evaluation comparison" [ref=f8e93]:
+              - generic [ref=f8e94]:
+                - heading "Original evaluation" [level=3] [ref=f8e95]
+                - paragraph [ref=f8e96]: 20 / 20
+                - paragraph [ref=f8e97]: "Weighted contribution: 20 pts"
+                - heading "Original rationale" [level=4] [ref=f8e98]
+                - paragraph [ref=f8e99]: The operator provided a clear and complete solution to the client's problem by explaining that a login stays on record after an account is closed and advising the client to use a different login for the new registration.
+                - button "Evidence 1" [ref=f8e101] [cursor=pointer]
+                - button "Review evidence" [ref=f8e102] [cursor=pointer]
+                - paragraph [ref=f8e108]: AI evaluation · Immutable original
+              - generic [ref=f8e109]:
+                - heading "Final decision" [level=3] [ref=f8e110]
+                - generic [ref=f8e111]:
+                  - paragraph [ref=f8e112]: Awaiting reviewer decision
+                  - paragraph [ref=f8e113]: Review the evidence, then record a decision below. The original evaluation remains in effect.
+            - paragraph [ref=f8e143]: Weighted points are shown before any N/A redistribution. Conversation totals use the finalized scoring calculation.
+            - generic [ref=f8e114]:
+              - heading "Review decision" [level=3] [ref=f8e115]
+              - group "Decision" [ref=f8e116]:
+                - generic [ref=f8e118]:
+                  - generic [ref=f8e119]:
+                    - radio "Uphold original evaluation" [checked] [ref=f8e120]
+                    - text: Uphold original evaluation
+                  - generic [ref=f8e121]:
+                    - radio "Change evaluation" [ref=f8e122]
+                    - text: Change evaluation
+              - generic [ref=f8e123]:
+                - generic [ref=f8e124]:
+                  - text: Reviewer name
+                  - textbox "Reviewer name" [ref=f8e125]:
+                    - /placeholder: Enter your name
+                - generic [ref=f8e126]:
+                  - text: Final criterion value
+                  - textbox "Final criterion value" [ref=f8e127]: "20"
+              - generic [ref=f8e128]:
+                - text: Decision rationale
+                - textbox "Decision rationale" [ref=f8e129]:
+                  - /placeholder: Explain your decision using the conversation evidence…
+              - generic [ref=f8e130]:
+                - generic [ref=f8e131]:
+                  - text: "Outcome:"
+                  - strong [ref=f8e132]: Upheld
+                - generic [ref=f8e133]:
+                  - button "Review evidence" [ref=f8e134] [cursor=pointer]
+                  - button "Mark in review" [disabled] [ref=f8e140] [cursor=pointer]
+                  - button "Record decision" [disabled] [ref=f8e141]

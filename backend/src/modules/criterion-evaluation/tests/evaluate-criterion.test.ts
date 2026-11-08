@@ -58,3 +58,45 @@ test("does not retry permanent gateway failures", async () => {
   await assert.rejects(() => evaluateCriterion({ gateway, language: "ru", messages, criterion, externalCode: "contact", maxRetries: 2 }), /rejected/);
   assert.equal(calls, 1);
 });
+
+test("normalizes quoted false for a severe-violation answer without treating it as truthy", async () => {
+  const criterion = freedomDefaultConfiguration.criteria[7]!;
+  let calls = 0;
+  const gateway: LlmGateway = { complete: async () => {
+    calls++;
+    return { content: JSON.stringify({ criterion_id: "critical", value: "false", rationale: "No violations in the operator reply.", evidence_message_ids: [messages[0]!.message_id], confidence: 0.9, model_id: "ignored" }), modelId: "actual-model", latencyMs: 1, usage: null };
+  } };
+  const result = await evaluateCriterion({ gateway, language: "ru", messages, criterion, externalCode: "critical", maxRetries: 1 });
+  assert.equal(result.value, false);
+  assert.equal(result.model_id, "actual-model");
+  assert.equal(calls, 1);
+});
+
+test("normalizes only configured numeric strings and still rejects unsupported scores and evidence", async () => {
+  const criterion = freedomDefaultConfiguration.criteria[3]!;
+  let answer: unknown = "20";
+  let evidence = messages[0]!.message_id;
+  const gateway: LlmGateway = { complete: async () => ({ content: JSON.stringify({ criterion_id: "consultation", value: answer, rationale: "Supported by the operator reply.", evidence_message_ids: [evidence], confidence: 0.9, model_id: "ignored" }), modelId: "actual-model", latencyMs: 1, usage: null }) };
+  const evaluate = () => evaluateCriterion({ gateway, language: "ru", messages, criterion, externalCode: "consultation", maxRetries: 0 });
+  assert.equal((await evaluate()).value, 20);
+  answer = "17";
+  await assert.rejects(evaluate, (error: unknown) => error instanceof LlmGatewayError && error.category === "malformed_response" && /value/.test(error.message));
+  answer = "20"; evidence = "invented:m9999";
+  await assert.rejects(evaluate, /not present/);
+});
+
+test("does not coerce ambiguous flag answers or default a malformed answer to no violation", async () => {
+  const criterion = freedomDefaultConfiguration.criteria[7]!;
+  for (const value of ["No", "0", "False", 0, null]) {
+    const gateway: LlmGateway = { complete: async () => ({ content: JSON.stringify({ criterion_id: "critical", value, rationale: "Test.", evidence_message_ids: [messages[0]!.message_id], confidence: 0.9, model_id: "ignored" }), modelId: "actual-model", latencyMs: 1, usage: null }) };
+    await assert.rejects(() => evaluateCriterion({ gateway, language: "ru", messages, criterion, externalCode: "critical", maxRetries: 0 }));
+  }
+});
+
+test("returns a quota cooldown immediately to durable recovery instead of retrying inline", async () => {
+  let calls = 0;
+  const error = new LlmGatewayError("Quota exhausted", "quota_exhausted", true, 429, 21_600_000);
+  const gateway: LlmGateway = { complete: async () => { calls++; throw error; } };
+  await assert.rejects(() => evaluateCriterion({ gateway, language: "ru", messages, criterion: freedomDefaultConfiguration.criteria[7]!, externalCode: "critical", maxRetries: 1 }), (caught: unknown) => caught === error);
+  assert.equal(calls, 1);
+});

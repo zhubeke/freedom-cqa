@@ -1,6 +1,7 @@
 export type ConversationLanguage = "all" | "kk" | "ru" | "en";
 export type ConversationChannel = "all" | "chat" | "call";
 export type ConversationTab = "all" | "chat" | "call";
+export type ConversationSortKey = "conversation_id" | "channel" | "duration" | "language" | "score" | "status" | "action";
 
 export interface Conversation {
   dataset_group_id: string;
@@ -14,6 +15,9 @@ export interface Conversation {
   recommended_action: import("./action").ActionCode | null;
   classification_source: "rules" | "tabpfn" | null;
   classification_status: string;
+  evaluation_status?: string;
+  critical_flag?: boolean | null;
+  score_reviewed?: boolean;
 }
 
 export interface ConversationListResponse {
@@ -23,6 +27,7 @@ export interface ConversationListResponse {
     normalized_channel: Conversation["channel"];
     message_count: number; duration_ms: number | null; has_audio: boolean; quality_score: number | null;
     recommended_action: import("./action").ActionCode | null; classification_source: "rules" | "tabpfn" | null; classification_status: string;
+    evaluation_status?: string; critical_flag?: boolean | null; score_reviewed?: boolean;
   }>;
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
@@ -49,6 +54,9 @@ export interface ConversationDetail {
   role_message_counts: Record<ConversationSpeaker, number>;
   has_audio: boolean;
   duration_ms: number | null;
+  operator_names?: Array<{ name: string; evidence_message_id: string | null; source: "structured" | "transcript" }>;
+  archived_at?: string | null;
+  deleted_at?: string | null;
 }
 
 export interface ImportStatus {

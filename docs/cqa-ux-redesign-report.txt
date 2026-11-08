@@ -1,0 +1,106 @@
+CQA checklist and appeal review redesign — delivery report
+8 November 2026
+
+Implemented directly in the existing Vue 3/TypeScript and Fastify application. Existing working-tree changes were preserved. The project uses its existing custom Vue controls rather than PrimeVue; no replacement UI framework or new dependency was introduced. Dragging uses the existing vue-draggable-plus/SortableJS dependency.
+
+Implemented behavior
+
+- Checklist management: centered 1280px container, compact responsive rows, unified list, case-insensitive name/description search with clear/no-results actions, enabled counts, weight, modification date, explicit backend availability, accessible overflow actions, independent inactive duplicates, activation/deactivation, and confirmed deletion. Search remains during ordinary interactions. Multiple checklists may be active. The original checklist cannot be deleted or deactivated.
+- Editor: section/criterion/settings hierarchy, criteria collapsed initially, multiple expanded criteria, global expansion controls, inline names and compact score descriptions, compact keyboard-operable switches, retained N/A text, menus for duplicate/move/enable/delete, section and criterion dragging including cross-section moves, keyboard reordering, and explicit position selection. IDs and drafts survive movement. An identity guard rejects incomplete drag transactions.
+- Saving: sticky toolbar, dirty state, saving state, valid-change gating, browser unload protection, Stay/Discard navigation dialog, and immutable version creation. Numeric scales retain nonuniform values and descriptions, including numeric-to-boolean-to-numeric changes across component remounts.
+- Validation: separate weight and scale checks, section totals, sticky/collapsible summary, and error buttons that expand the section/criterion, scroll, and focus the field. The existing backend remains authoritative. Maximum raw scale values remain independent of criterion weights.
+- Reviews: compact counters/header, approximately 30/70 queue/workspace, search/filter/sort, retained selection, original/final comparison, separate workflow and outcome labels, constrained numeric/Boolean/N/A values, independent evaluation reasoning and decision rationale, explicit decision confirmation, and completed read-only decisions with recorded metadata.
+- Evidence: contextual right drawer with native dialog focus containment and Escape/close behavior, exact transcript order, system events, timestamps, stable IDs, highlighted references, surrounding context, and explicit warnings for missing references. Opening the drawer retains decision drafts. Conversation navigation carries an explicit return URL and selected appeal.
+- Finalized reports/export/classification inputs consume revised values, rationale and evidence without overwriting original criterion records. Substantive review changes use the existing reclassification queue.
+
+Additive backend contracts
+
+- POST /api/v1/checklists/:id/status: { is_active: boolean }.
+- POST /api/v1/checklists/:id/duplicate: optional { name }; returns an independent checklist/version. Duplicates start inactive.
+- Checklist records add is_active. Legacy records without that field retain their existing active behavior. Summaries add enabled_criterion_count, can_delete and can_deactivate. active_version_id remains the selected immutable version even while unavailable for new evaluations.
+- POST /api/v1/appeals/:id/decision additionally accepts revised_explanation and revised_evidence_message_ids. Decisions add outcome, effective_explanation and effective_evidence_message_ids. New appeal snapshots also include criterion weight and numeric-scale metadata. Historical status values remain intact.
+- GET /api/v1/appeals/summary returns total/pending/completed counts.
+- GET /api/v1/appeals?limit=all returns the complete queue; the existing default and numeric limit behavior remain supported.
+- New evaluation/job/batch requests reject inactive checklists. Already accepted work can finish against its pinned snapshot.
+- No historical migration or authentication change is required.
+
+Actual verification results
+
+1. Backend: npm test — 128 tests passed, zero failures or skips.
+2. Backend: npm run typecheck and npm run build — passed.
+3. Frontend: node --test --import ./backend/node_modules/tsx/dist/loader.mjs frontend/tests/*.test.ts — 19 tests passed, zero failures or skips. Run from the repository root with both existing dependency directories installed.
+4. Frontend: npm run typecheck — passed. npm run build — passed after running esbuild outside the filesystem sandbox; final production output generated successfully. Vite reported a bundle-size warning (main JS approximately 1.55 MB, 501 KB gzip).
+5. Browser: desktop and 390px mobile checks passed for compact list search/no-results, menu protection, independent duplicate, multiple active checklists, deactivate/delete confirmation, and search retention.
+6. Browser/editor: multiple expansion, global expansion, draft retention, N/A toggle retention, invalid-scale/save gating, clickable field errors, keyboard reordering, pointer reordering within and across sections, section pointer dragging, criterion duplicate/delete confirmation, Stay/Discard, immutable saves, numeric cache across section moves, and mobile sticky-save positioning were checked.
+7. Browser/reviews: cloned real p1-en-001 records exercised evidence navigation (Turn 10 = p1-en-001:m0009), retained system events and original order, focus/Escape, draft retention, explicit return navigation, search/filter/sort, all three decision outcomes, confirmation, read-only completion, counters, and responsive comparison/drawer layouts. An injected invalid reference showed a warning and did not highlight an unrelated message.
+8. Live isolated MongoDB/Fastify verification: consultation reasoning-only revision kept 20/20 and the original conversation score of 80; dialogue raw score 10 -> 7 with weight 15 and maximum 10 recalculated the conversation total to 75.5. All three decisions persisted, original evaluation documents and original checklist snapshots remained byte-equivalent in their configuration fields, and two reclassification publication calls were captured by the QA producer stub. No external model inference was performed by this QA harness.
+9. Deleted checklist verification: all three retained immutable versions remained readable through their individual version endpoints after removing the editable checklist. Listing all versions for a deleted parent still returns the existing parent-not-found response.
+10. The existing source Freedom checklist retained active version ecf87534-8b0d-4053-8400-3039584a9158 and its original updated_at timestamp. Browser mutations used isolated QA databases, which were removed afterward.
+11. Docker Compose config --quiet passed for all three Compose files with installed docker-compose. Makefile health/test dry runs parsed. Actual make health COMPOSE=docker-compose failed with 'UNHEALTHY: mongodb is missing' in the current Docker context. The separately running local API reported MongoDB, Redis and Redpanda healthy.
+12. git diff --check passed (only line-ending normalization notices).
+
+Files created
+
+frontend/src/components/ConfirmDialog/ConfirmDialog.vue
+frontend/src/components/ChecklistSwitch/ChecklistSwitch.vue
+frontend/src/shared/checklist-draft.ts
+frontend/src/shared/checklist-validation.ts
+frontend/src/pages/reviews/review-model.ts
+frontend/src/pages/reviews/components/EvaluationComparison/EvaluationComparison.vue
+frontend/src/pages/reviews/components/ReviewEvidenceDrawer/ReviewEvidenceDrawer.vue
+frontend/tests/checklist-editor.test.ts
+frontend/tests/criterion-presentation.test.ts
+frontend/tests/review-model.test.ts
+backend/src/modules/checklist-management/application/duplicate-checklist.ts
+backend/src/modules/checklist-management/application/set-checklist-active.ts
+backend/src/modules/appeals/application/review-decision.ts
+backend/src/modules/appeals/schemas/appeal.schemas.ts
+backend/src/modules/appeals/tests/review-decision.test.ts
+
+Files modified for this task (some already contained earlier user changes)
+
+frontend/src/pages/checklists/ChecklistsPage.vue
+frontend/src/pages/checklist-builder/ChecklistBuilderPage.vue
+frontend/src/pages/reviews/ReviewsPage.vue
+frontend/src/components/ChecklistEditor/ChecklistEditor.vue
+frontend/src/components/ChecklistSection/ChecklistSection.vue
+frontend/src/components/CriterionEditor/CriterionEditor.vue
+frontend/src/components/NumericScaleEditor/NumericScaleEditor.vue
+frontend/src/components/WeightSummary/WeightSummary.vue
+frontend/src/components/AppShell/AppShell.vue
+frontend/src/components/CriterionScorecard/CriterionScorecard.vue
+frontend/src/components/CriterionScorecard/criterion-presentation.ts
+frontend/src/components/EvaluationPanel/EvaluationPanel.vue
+frontend/src/components/BatchEvaluationDialog/BatchEvaluationDialog.vue
+frontend/src/components/BulkEvaluationDialog/BulkEvaluationDialog.vue
+frontend/src/pages/conversation-detail/ConversationDetailPage.vue
+frontend/src/api/checklists.ts
+frontend/src/api/appeals.ts
+frontend/src/shared/types/checklist.ts
+frontend/src/shared/types/appeal.ts
+backend/src/modules/checklist-management/adapters/http/routes.ts
+backend/src/modules/checklist-management/adapters/persistence/checklist-repository.ts
+backend/src/modules/checklist-management/application/delete-checklist.ts
+backend/src/modules/checklist-management/domain/checklist.types.ts
+backend/src/modules/checklist-management/tests/checklist-management.test.ts
+backend/src/modules/appeals/adapters/http/routes.ts
+backend/src/modules/appeals/adapters/persistence/appeal-repository.ts
+backend/src/modules/appeals/application/appeal.types.ts
+backend/src/modules/evaluation-orchestration/application/start-evaluation.ts
+backend/src/modules/evaluation-orchestration/tests/start-evaluation.test.ts
+backend/src/modules/analysis-jobs/application/analysis-coordinator.ts
+backend/src/modules/batch-evaluation/application/create-batch.ts
+backend/src/modules/batch-evaluation/application/process-batch.ts
+backend/src/modules/action-classification/adapters/persistence/classification-repository.ts
+backend/src/modules/action-classification/tests/action-classification.test.ts
+backend/src/modules/results-export/application/serialize-result.ts
+backend/src/modules/results-export/tests/export-results.test.ts
+
+Screenshots and browser harness artifacts are under output/playwright/, including checklists-desktop-redesign.png, checklist-editor-desktop-redesign.png, reviews-desktop-redesign.png, review-evidence-drawer-redesign.png, and mobile variants.
+
+Remaining environment limits
+
+- Full Docker Compose startup/health could not be verified because the expected project containers are absent from the current Docker context. No Docker/Makefile source files were changed for this task.
+- The pre-existing running backend process still serves its previously loaded modules. Restart the backend service to load the newly built routes before using the new activation/duplication and review metadata endpoints in that process.
+- Production build retains the reported large-chunk warning. No unrelated bundle refactoring was introduced.
+- Live LLM inference, live TabPFN provider prediction, and audio-model downloads/playback were not rerun. Existing backend regressions passed; the new QA harness used an isolated producer stub for reclassification publication.

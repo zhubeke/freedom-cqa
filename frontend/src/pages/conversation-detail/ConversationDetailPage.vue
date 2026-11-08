@@ -1,32 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useQuery } from "@tanstack/vue-query";
 import { AlertCircle, FileQuestion, RefreshCw } from "lucide-vue-next";
 import { useRoute, useRouter } from "vue-router";
 import { ApiError, apiGet } from "../../api/client";
 import ConversationDetailHeader from "../../components/ConversationDetailHeader/ConversationDetailHeader.vue";
 import ConversationDetailSkeleton from "../../components/ConversationDetailSkeleton/ConversationDetailSkeleton.vue";
-import ConversationInfo from "../../components/ConversationInfo/ConversationInfo.vue";
 import ConversationTranscript from "../../components/ConversationTranscript/ConversationTranscript.vue";
-import EvaluationPanel from "../../components/EvaluationPanel/EvaluationPanel.vue";
-import ConversationMetadataPanel from "../../components/ConversationMetadataPanel/ConversationMetadataPanel.vue";
-import ConversationSentimentTimeline from "../../components/ConversationSentimentTimeline/ConversationSentimentTimeline.vue";
-import RecommendedActionCard from "../../components/RecommendedActionCard/RecommendedActionCard.vue";
-import AudioIntelligencePanel from "../../components/AudioIntelligencePanel/AudioIntelligencePanel.vue";
+import DraggableAnalysisTabs from "../../components/DraggableAnalysisTabs/DraggableAnalysisTabs.vue";
+import ConversationAnalysisActions from "../../components/ConversationAnalysisActions/ConversationAnalysisActions.vue";
 import type { ConversationDetail } from "../../shared/types/conversation";
 import { useScrollToMessage } from "./composables/useScrollToMessage";
 
 const route = useRoute();
 const router = useRouter();
 const conversationId = computed(() => String(route.params.id ?? ""));
+const datasetGroupId = computed(() => typeof route.query.datasetGroupId === "string" ? route.query.datasetGroupId : "");
 const conversationQuery = useQuery({
-  queryKey: computed(() => ["conversation", conversationId.value]),
-  queryFn: ({ signal }) => apiGet<ConversationDetail>(`/v1/conversations/${encodeURIComponent(conversationId.value)}`, signal),
+  queryKey: computed(() => ["conversation", conversationId.value, datasetGroupId.value]),
+  queryFn: ({ signal }) => apiGet<ConversationDetail>(`/v1/conversations/${encodeURIComponent(conversationId.value)}${datasetGroupId.value ? `?datasetGroupId=${encodeURIComponent(datasetGroupId.value)}` : ''}`, signal),
   retry: (failureCount, error) => !(error instanceof ApiError && error.status === 404) && failureCount < 2
 });
 const isNotFound = computed(() => conversationQuery.error.value instanceof ApiError && conversationQuery.error.value.status === 404);
 const requestedMessage = computed(() => typeof route.query.message === "string" ? route.query.message : "");
-const { highlightedMessageId, scrollToMessage } = useScrollToMessage();
+const transcriptPanel = ref<HTMLElement | null>(null);
+const pipelineRunId = ref("");
+watch(conversationId, () => { pipelineRunId.value = ""; });
+const { highlightedMessageId, scrollToMessage } = useScrollToMessage(transcriptPanel,
+  () => conversationQuery.data.value?.transcript ?? []);
 
 watch([() => conversationQuery.data.value, requestedMessage], async ([conversation, messageId]) => {
   if (!conversation || !messageId) return;
@@ -36,7 +37,7 @@ watch([() => conversationQuery.data.value, requestedMessage], async ([conversati
 
 function goBack(): void {
   const from = typeof route.query.from === "string" ? route.query.from : "";
-  if (from.startsWith("/conversations") && !from.startsWith("/conversations/")) {
+  if (from === "/reviews" || from.startsWith("/reviews?") || from === "/dashboard" || from === "/conversations" || from.startsWith("/conversations?")) {
     const target = router.resolve(from);
     void router.push({ path: target.path, query: target.query, hash: target.hash });
   } else {
@@ -73,16 +74,15 @@ async function navigateToEvidence(messageId: string): Promise<void> {
     </div>
   </section>
 
-  <div v-else-if="conversationQuery.data.value" class="space-y-6">
-    <ConversationDetailHeader :conversation="conversationQuery.data.value" @back="goBack" />
-    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-      <ConversationInfo class="lg:col-start-2 lg:row-start-1" :conversation="conversationQuery.data.value" />
-      <ConversationTranscript class="lg:col-start-1 lg:row-start-1" :conversation="conversationQuery.data.value" :highlighted-message-id="highlightedMessageId" />
+  <div v-else-if="conversationQuery.data.value" class="conversation-workspace flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+    <ConversationDetailHeader :conversation="conversationQuery.data.value" @back="goBack">
+      <template #actions><ConversationAnalysisActions :conversation-id="conversationId" :dataset-group-id="conversationQuery.data.value.dataset_group_id" @evaluation-run="pipelineRunId = $event" /></template>
+    </ConversationDetailHeader>
+    <div class="workspace-panels grid min-h-0 min-w-0 flex-1 gap-3 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)]">
+      <div ref="transcriptPanel" class="min-h-0 min-w-0 lg:flex lg:overflow-hidden">
+        <ConversationTranscript :conversation="conversationQuery.data.value" :highlighted-message-id="highlightedMessageId" />
+      </div>
+      <DraggableAnalysisTabs :conversation="conversationQuery.data.value" :evaluation-run-id="pipelineRunId" @evidence="navigateToEvidence" />
     </div>
-    <EvaluationPanel :conversation-id="conversationId" @evidence="navigateToEvidence" />
-    <RecommendedActionCard :conversation-id="conversationId" @evidence="navigateToEvidence" />
-    <AudioIntelligencePanel :conversation-id="conversationId" :dataset-group-id="conversationQuery.data.value.dataset_group_id" :has-audio="conversationQuery.data.value.has_audio" />
-    <ConversationSentimentTimeline :conversation="conversationQuery.data.value" @message="navigateToEvidence" />
-    <ConversationMetadataPanel :conversation="conversationQuery.data.value" />
   </div>
 </template>

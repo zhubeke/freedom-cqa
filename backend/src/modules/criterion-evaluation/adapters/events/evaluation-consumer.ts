@@ -69,8 +69,9 @@ export class EvaluationConsumer {
     } }, { upsert: true });
     try {
       const result = await evaluateCriterion({ gateway: this.gateway, language: String(loaded.conversation.normalized_language), messages: loaded.conversation.transcript as EvaluationMessage[], criterion, externalCode, maxRetries: 1 });
+      const contribution = calculateEvaluationScore([criterion], new Map([[criterion.id, result.value]])).weightedContributions.get(criterion.id) ?? 0;
       await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: {
-        raw_value: result.value, is_na: result.value === null, na_rationale: result.value === null ? result.rationale : null,
+        raw_value: result.value, weighted_contribution: contribution, is_na: result.value === null, na_rationale: result.value === null ? result.rationale : null,
         explanation: result.rationale, evidence_message_ids: result.evidence_message_ids, evidence_turns: result.evidence_turns,
         confidence: result.confidence, model_id: result.model_id, latency_ms: result.latency_ms, token_usage: result.token_usage,
         processing_state: "completed", error: null, error_category: null, completed_at: new Date()
@@ -81,7 +82,7 @@ export class EvaluationConsumer {
       const retryCount = (existing?.retry_count ?? 0) + 1;
       const capacityDeferred = error instanceof LlmGatewayError && ["quota_exhausted", "rate_limited", "provider_unavailable"].includes(error.category);
       if (error instanceof LlmGatewayError && error.retryable && (capacityDeferred || retryCount <= this.config.llm.maxRetries)) {
-        const delay = error.category === "quota_exhausted" ? (this.config.llm.quotaRecheckMs ?? 21_600_000) : Math.max(error.retryAfterMs ?? 0, Math.min(60_000, 2 ** Math.min(retryCount, 5) * 2_000 + Math.floor(Math.random() * 1_000)));
+        const delay = error.category === "quota_exhausted" ? (error.retryAfterMs ?? this.config.llm.quotaRecheckMs ?? 21_600_000) : Math.max(error.retryAfterMs ?? 0, Math.min(60_000, 2 ** Math.min(retryCount, 5) * 2_000 + Math.floor(Math.random() * 1_000)));
         const nextRetryAt = new Date(Date.now() + delay);
         await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: { processing_state: "retry_scheduled", error: detail, error_category: category, retry_count: retryCount, next_retry_at: nextRetryAt, completed_at: null } });
         await this.repository.runs().updateOne({ run_id: runId }, { $set: { status: "waiting", error: "Waiting for AI capacity", error_category: category, next_retry_at: nextRetryAt } });
@@ -98,6 +99,11 @@ export class EvaluationConsumer {
     await this.repository.runs().updateOne({ run_id: runId }, { $set: { completed_criteria: finished.length } });
     const enabled = version.criteria.filter((criterion) => criterion.enabled);
     if (finished.length < enabled.length) return;
+    const values = new Map(results.map((result) => [result.criterion_id, result.raw_value]));
+    const score = calculateEvaluationScore(enabled, values);
+    for (const result of results.filter((item) => item.processing_state === "completed")) {
+      await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: result.criterion_id }, { $set: { weighted_contribution: score.weightedContributions.get(result.criterion_id) ?? 0 } });
+    }
     const errors = results.filter((item) => item.processing_state === "error");
     if (errors.length) {
       const category = errors[0]?.error_category ?? "malformed_response";
@@ -106,9 +112,6 @@ export class EvaluationConsumer {
       if (updated) await this.publishCompleted(updated);
       return;
     }
-    const values = new Map(results.map((result) => [result.criterion_id, result.raw_value]));
-    const score = calculateEvaluationScore(enabled, values);
-    for (const [criterionId, contribution] of score.weightedContributions) await this.repository.criteria().updateOne({ evaluation_run_id: runId, criterion_id: criterionId }, { $set: { weighted_contribution: contribution } });
     const updated = await this.repository.runs().findOneAndUpdate({ run_id: runId, status: { $nin: ["completed", "failed"] } }, { $set: { status: "completed", error: null, error_category: null, completed_at: new Date(), final_score: score.finalScore, critical_flag: score.criticalFlag, completion_publication_status: "pending" }, $unset: { active_key: "" } }, { returnDocument: "after" });
     if (updated) await this.publishCompleted(updated);
   }
@@ -128,7 +131,12 @@ export class EvaluationConsumer {
       if (!run) continue;
       await this.repository.runs().updateOne({ run_id: run.run_id }, { $set: { status: "processing", error: null, next_retry_at: null } });
       const event = criterionEvent(run, criterion.criterion_id);
-      await this.producer.send({ topic: CRITERION_REQUESTED_TOPIC, messages: [{ key: `${run.run_id}:${criterion.criterion_id}`, value: JSON.stringify(event) }] });
+      try {
+        await this.producer.send({ topic: CRITERION_REQUESTED_TOPIC, messages: [{ key: `${run.run_id}:${criterion.criterion_id}`, value: JSON.stringify(event) }] });
+      } catch (error) {
+        await this.repository.criteria().updateOne({ _id: criterion._id, processing_state: "processing" }, { $set: { processing_state: "retry_scheduled", next_retry_at: new Date() } });
+        throw error;
+      }
     }
   }
   async close() { await this.consumer.disconnect(); }

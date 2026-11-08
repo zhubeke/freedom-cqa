@@ -10,7 +10,7 @@ export interface ConversationMetadata {
   semantic_status: "pending" | "processing" | "completed" | "partial" | "failed";
   audio_status: "pending" | "processing" | "completed" | "failed" | "not_applicable";
   deterministic: null | {
-    conversation: { duration_seconds: NullableMetric; total_message_count: number };
+    conversation: { duration_seconds: NullableMetric; total_message_count: number; operator_names?: Array<{ name: string; evidence_message_id: string | null; source: "structured" | "transcript" }> };
     messages_and_turns: { client_message_count: number; operator_message_count: number; bot_message_count: number; system_message_count: number; client_turn_count: number; operator_turn_count: number; human_handoff_count: number };
     response_timing: { first_operator_response_seconds: NullableMetric; average_operator_response_seconds: NullableMetric; first_operator_response_after_handoff_seconds: NullableMetric };
   };

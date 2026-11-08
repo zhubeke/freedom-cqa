@@ -25,6 +25,8 @@ function fingerprint(conversation: Record<string, unknown>, checklistVersionId: 
 export async function createBatch(db: Db, repository: BatchRepository, config: AppConfig, datasetGroupId: string, checklistVersionId: string, maxConversations?: number) {
   const version = await db.collection<{ _id: string; checklist_id: string; criteria: Array<{ enabled: boolean }> }>("checklist_versions").findOne({ _id: checklistVersionId });
   if (!version) throw new BatchRequestError("Checklist version not found", 404);
+  const parent = await db.collection("checklists").findOne({ _id: version.checklist_id } as never);
+  if (!parent || parent.is_active === false) throw new BatchRequestError("This checklist is inactive or no longer available for new evaluations", 409);
   const allConversations = await db.collection<Record<string, unknown>>("conversations").find({ dataset_group_id: datasetGroupId }).sort({ conversation_id: 1 }).toArray();
   const conversations = maxConversations ? allConversations.slice(0, maxConversations) : allConversations;
   if (conversations.length === 0) throw new BatchRequestError("Dataset contains no conversations", 404);

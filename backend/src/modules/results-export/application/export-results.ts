@@ -5,45 +5,45 @@ import type { Db } from "mongodb";
 import type { AppConfig } from "../../../config/config.js";
 import type { ChecklistCriterion } from "../../checklist-management/domain/checklist.types.js";
 import type { EvaluationBatchDocument } from "../../batch-evaluation/application/batch.types.js";
-import { ORGANIZER_CRITERION_IDS, type OrganizerCriterion, type OrganizerCriterionId, type OrganizerResults } from "./results.types.js";
+import { ORGANIZER_CRITERION_IDS, type OrganizerResults } from "./results.types.js";
 import { validateOrganizerResults } from "./validate-results.js";
+import { loadExportResult } from "./conversation-export.js";
+import { ResultsExportError } from "./export-errors.js";
 
-export class ResultsExportError extends Error {
-  constructor(message: string, public readonly statusCode = 400, public readonly details: string[] = []) { super(message); }
-}
+export { ResultsExportError } from "./export-errors.js";
 
 export async function buildOrganizerResults(db: Db, config: AppConfig, batch: EvaluationBatchDocument) {
   if (!["completed", "completed_with_errors"].includes(batch.status)) throw new ResultsExportError("Only finished batches can be exported", 409);
-  if (!config.teamName) throw new ResultsExportError("CQA_TEAM_NAME must be configured before export", 422);
+  if (!config.teamName.trim()) throw new ResultsExportError("CQA_TEAM_NAME must be configured before export", 422);
   const version = await db.collection<{ _id: string; criteria: ChecklistCriterion[] }>("checklist_versions").findOne({ _id: batch.checklist_version_id });
   if (!version) throw new ResultsExportError("Checklist version is missing", 500);
   const conversations = await db.collection<{ conversation_id: string; message_count: number }>("conversations").find({ dataset_group_id: batch.dataset_group_id }, { projection: { conversation_id: 1, message_count: 1 } }).sort({ conversation_id: 1 }).toArray();
   const results: OrganizerResults["results"] = [];
   const modelNames = new Set<string>();
+  const checklistsByConversation = new Map<string, ChecklistCriterion[]>();
   for (const item of batch.conversation_results) {
     if (!item.evaluation_run_id || item.status === "failed") {
       results.push({ conversation_id: item.conversation_id, status: "error", criteria: [], score: null, error: item.error || "Model evaluation failed." });
       continue;
     }
-    const run = await db.collection("evaluation_runs").findOne({ run_id: item.evaluation_run_id });
-    if (!run || run.status !== "completed" || typeof run.final_score !== "number" || typeof run.critical_flag !== "boolean") {
-      results.push({ conversation_id: item.conversation_id, status: "error", criteria: [], score: null, error: "Model evaluation failed." });
-      continue;
+    try {
+      const prepared = await loadExportResult(db, { dataset_group_id: batch.dataset_group_id, conversation_id: item.conversation_id }, item.evaluation_run_id);
+      modelNames.add(prepared.modelName);
+      checklistsByConversation.set(item.conversation_id, prepared.checklist);
+      results.push(prepared.result);
+    } catch (error) {
+      results.push({ conversation_id: item.conversation_id, status: "error", criteria: [], score: null, error: error instanceof Error ? error.message : "Model evaluation failed." });
     }
-    const stored = await db.collection("criterion_evaluations").find({ evaluation_run_id: item.evaluation_run_id, processing_state: "completed" }).sort({ display_order: 1 }).toArray();
-    const criteria = stored.map((criterion) => {
-      modelNames.add(String(criterion.model_id));
-      return { criterion_id: String(criterion.external_code) as OrganizerCriterionId, value: criterion.raw_value as boolean | number | null, rationale: String(criterion.explanation), evidence_turns: criterion.evidence_turns as number[] };
-    });
-    results.push({ conversation_id: item.conversation_id, status: "ok", criteria: criteria as OrganizerCriterion[], score: { final_score: Math.round((Number(run.final_score) + Number.EPSILON) * 100) / 100, critical_flag: Boolean(run.critical_flag) } });
   }
   results.sort((left, right) => left.conversation_id.localeCompare(right.conversation_id));
-  const document: OrganizerResults = { schema_version: "1.0", team_name: config.teamName, model: { mode: "external_api", name: [...modelNames].sort().join(", ") || batch.model_id }, results };
+  if (modelNames.size > 1) throw new ResultsExportError("Batch evaluations use incompatible models. Export each model separately.", 422, [...modelNames]);
+  const document: OrganizerResults = { schema_version: "1.0", team_name: config.teamName, model: { mode: "external_api", name: [...modelNames][0] || batch.model_id }, results };
   const validation = validateOrganizerResults(document, {
     datasetGroupId: batch.dataset_group_id,
     expectedConversationIds: batch.conversation_results.map((item) => item.conversation_id),
     messageCounts: new Map(conversations.map((item) => [item.conversation_id, item.message_count])),
-    checklistCriteria: version.criteria
+    checklistCriteria: version.criteria,
+    checklistsByConversation
   });
   if (!validation.valid) throw new ResultsExportError("Organizer results validation failed", 422, validation.errors);
   return { document, validation };

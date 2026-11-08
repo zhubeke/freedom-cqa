@@ -15,6 +15,7 @@ interface ChecklistDocument {
   name: string;
   description: string;
   active_version_id: string | null;
+  is_active?: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -30,7 +31,7 @@ interface ChecklistVersionDocument extends ChecklistConfiguration {
 }
 
 const cloneConfiguration = (configuration: ChecklistConfiguration): ChecklistConfiguration => structuredClone(configuration);
-const mapChecklist = ({ _id, ...document }: ChecklistDocument): ChecklistRecord => ({ id: _id, ...document });
+const mapChecklist = ({ _id, ...document }: ChecklistDocument): ChecklistRecord => ({ id: _id, ...document, is_active: document.is_active !== false });
 const mapVersion = ({ _id, ...document }: ChecklistVersionDocument): ChecklistVersionRecord => ({ id: _id, ...document });
 
 export class MongoChecklistRepository implements ChecklistRepository {
@@ -55,8 +56,12 @@ export class MongoChecklistRepository implements ChecklistRepository {
       { $lookup: { from: "checklist_versions", localField: "active_version_id", foreignField: "_id", as: "active" } },
       { $set: {
         id: "$_id",
+        is_active: { $ifNull: ["$is_active", true] },
+        can_delete: { $ne: ["$_id", "freedom-default-checklist"] },
+        can_deactivate: { $ne: ["$_id", "freedom-default-checklist"] },
         active_version_number: { $ifNull: [{ $first: "$active.version_number" }, null] },
         criterion_count: { $size: { $ifNull: [{ $first: "$active.criteria" }, []] } },
+        enabled_criterion_count: { $size: { $filter: { input: { $ifNull: [{ $first: "$active.criteria" }, []] }, as: "criterion", cond: { $eq: ["$$criterion.enabled", true] } } } },
         total_scoring_weight: { $ifNull: [{ $first: "$active.total_scoring_weight" }, 0] }
       } },
       { $project: { _id: 0, active: 0 } },
@@ -83,7 +88,7 @@ export class MongoChecklistRepository implements ChecklistRepository {
     const now = new Date();
     const checklistId = input.id ?? randomUUID();
     const versionId = randomUUID();
-    const checklist: ChecklistDocument = { _id: checklistId, name: input.name, description: input.description, active_version_id: versionId, created_at: now, updated_at: now };
+    const checklist: ChecklistDocument = { _id: checklistId, name: input.name, description: input.description, active_version_id: versionId, is_active: true, created_at: now, updated_at: now };
     const version: ChecklistVersionDocument = {
       _id: versionId, checklist_id: checklistId, version_number: 1, created_at: now, created_from_version_id: null,
       ...cloneConfiguration(input.configuration), total_scoring_weight: validateConfiguration(input.configuration), schema_version: 1
@@ -186,6 +191,16 @@ export class MongoChecklistRepository implements ChecklistRepository {
   async deleteChecklist(id: string): Promise<boolean> {
     // Keep immutable version documents: completed evaluations reference them as
     // historical snapshots even after the editable checklist is removed.
-    return (await this.checklists.deleteOne({ _id: id })).deletedCount === 1;
+    if (id === "freedom-default-checklist") throw new ChecklistError("The original checklist cannot be deleted", 409, "PROTECTED_CHECKLIST");
+    const deleted = await this.checklists.deleteOne({ _id: id, is_active: false });
+    if (!deleted.deletedCount && await this.checklists.findOne({ _id: id })) throw new ChecklistError("Deactivate the checklist before deleting it", 409, "ACTIVE_CHECKLIST");
+    return deleted.deletedCount === 1;
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<ChecklistRecord> {
+    if (!isActive && id === "freedom-default-checklist") throw new ChecklistError("The original checklist is required for default evaluations", 409, "PROTECTED_CHECKLIST");
+    const updated = await this.checklists.findOneAndUpdate({ _id: id }, { $set: { is_active: isActive, updated_at: new Date() } }, { returnDocument: "after" });
+    if (!updated) throw new ChecklistError("Checklist not found", 404, "CHECKLIST_NOT_FOUND");
+    return mapChecklist(updated);
   }
 }

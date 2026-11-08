@@ -32,8 +32,8 @@ export async function registerClassificationRoutes(app: FastifyInstance, db: Db,
   });
   app.get("/api/v1/classification/status", async () => {
     const labels = await repository.verifiedLabels(); const readiness = trainingReadiness(labels as any[], config.classification.minPerClass, config.classification.minTotal);
-    const model = readiness.ready ? await repository.readyModel(readiness.dataset_version) : null;
-    return { enabled: config.tabpfn.enabled, feature_version: ACTION_FEATURE_VERSION, training: { ready: readiness.ready, reasons: readiness.reasons, class_counts: readiness.counts, represented_classes: readiness.represented_classes, eligible_total: readiness.eligible_labels.length }, model: model ? { status: model.status, provider_model_id: model.provider_model_id, fitted_train_set_id: model.fitted_train_set_id, training_dataset_version: model.training_dataset_version } : null };
+    const model = readiness.ready ? await repository.readyModel(readiness.dataset_version, config.tabpfn.modelId) : null;
+    return { enabled: config.tabpfn.enabled, feature_version: ACTION_FEATURE_VERSION, training: { ready: readiness.ready, reasons: readiness.reasons, sample_source: readiness.sample_source, verified_total: readiness.verified_total, rejected_total: readiness.rejected_total, minimum_per_class: config.classification.minPerClass, minimum_total: config.classification.minTotal, class_counts: readiness.counts, represented_classes: readiness.represented_classes, eligible_total: readiness.eligible_labels.length }, model: model ? { status: model.status, provider_model_id: model.provider_model_id, fitted_train_set_id: model.fitted_train_set_id, training_dataset_version: model.training_dataset_version } : null };
   });
   app.post<{ Params: { groupId: string }; Body: DatasetClassifyBody }>("/api/v1/datasets/:groupId/classify", { schema: { params: DatasetParamsSchema, body: DatasetClassifyBodySchema } }, async (request, reply) => {
     const conversations = (await repository.datasetConversations(request.params.groupId)).slice(0, request.body.limit ?? Number.MAX_SAFE_INTEGER); let queuedCount = 0; let duplicateCount = 0;

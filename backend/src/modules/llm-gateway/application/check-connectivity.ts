@@ -11,6 +11,7 @@ function parseProbe(response: LlmResponse): void {
 }
 
 export async function checkLlmConnectivity(gateway: LlmGateway, maxRetries = 0): Promise<{ modelId: string; latencyMs: number }> {
+  if (gateway.withFallback) return gateway.withFallback((provider) => checkLlmConnectivity(provider, maxRetries));
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
@@ -25,5 +26,5 @@ export async function checkLlmConnectivity(gateway: LlmGateway, maxRetries = 0):
       if (error instanceof LlmGatewayError && !error.retryable) throw error;
     }
   }
-  throw lastError instanceof Error ? lastError : new LlmGatewayError("Cloudflare connectivity check failed", "network", true);
+  throw lastError instanceof Error ? lastError : new LlmGatewayError("AI connectivity check failed", "network", true);
 }

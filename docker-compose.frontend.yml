@@ -5,6 +5,8 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_ROUTER_BASE: ${VITE_ROUTER_BASE}
+        VITE_SCORE_HIGH_THRESHOLD: ${VITE_SCORE_HIGH_THRESHOLD:-80}
+        VITE_SCORE_MEDIUM_THRESHOLD: ${VITE_SCORE_MEDIUM_THRESHOLD:-60}
     restart: unless-stopped
     ports:
       - "${WEB_PORT}:8080"

@@ -8,12 +8,12 @@ defineProps<{ conversation: ConversationDetail; highlightedMessageId?: string | 
 </script>
 
 <template>
-  <section aria-labelledby="transcript-title" class="overflow-hidden rounded-[1.75rem] bg-white">
-    <div class="border-b border-line px-5 py-5 sm:px-7">
-      <h2 id="transcript-title" class="text-lg font-bold text-ink">Transcript</h2>
-      <p class="mt-1 text-sm text-muted">Messages are shown in their original source order.</p>
+  <section aria-labelledby="transcript-title" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-line bg-white">
+    <div class="flex shrink-0 items-baseline justify-between gap-2 border-b border-line px-4 py-3">
+      <h2 id="transcript-title" class="text-sm font-bold text-ink">Transcript</h2>
+      <p class="text-xs text-muted">{{ conversation.transcript.length }} messages · Source order</p>
     </div>
-    <div v-if="conversation.transcript.length" class="space-y-5 p-4 sm:p-7">
+    <div v-if="conversation.transcript.length" data-transcript-scroll class="min-h-0 space-y-3 p-3 sm:p-4 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain" tabindex="0" aria-label="Transcript messages">
       <template v-for="message in conversation.transcript" :key="message.message_id">
         <SystemEventMessage v-if="message.speaker === 'system'" :message="message" :highlighted="highlightedMessageId === message.message_id" />
         <TranscriptMessage v-else :message="message" :voice-call="conversation.normalized_channel === 'call'" :highlighted="highlightedMessageId === message.message_id" />

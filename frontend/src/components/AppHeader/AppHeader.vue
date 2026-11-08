@@ -7,8 +7,8 @@ const mobileMenuOpen = ref(false);
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 border-b border-line/90 bg-white/95 backdrop-blur-md">
-    <div class="mx-auto flex h-[4.5rem] w-full max-w-[76rem] items-center justify-between px-4 sm:px-6 lg:px-8">
+  <header class="sticky top-0 z-30 shrink-0 border-b border-line bg-white">
+    <div class="mx-auto flex h-[4.5rem] w-full max-w-[90rem] items-center justify-between px-4 sm:px-6 lg:px-8">
       <RouterLink to="/conversations" class="group flex items-center gap-3 rounded-xl" aria-label="CQA home" @click="mobileMenuOpen = false">
         <img :src="visualAssets.logos.cqaMark" alt="" class="size-10 transition-transform duration-200 group-hover:scale-[1.04]" />
         <span class="leading-none">
@@ -17,7 +17,7 @@ const mobileMenuOpen = ref(false);
         </span>
       </RouterLink>
 
-      <nav class="hidden self-stretch sm:flex" aria-label="Main navigation">
+      <nav class="hidden self-stretch md:flex" aria-label="Main navigation">
         <RouterLink
           to="/conversations"
           class="relative inline-flex items-center gap-2 px-4 text-sm font-semibold text-muted transition-colors hover:text-ink"
@@ -40,7 +40,7 @@ const mobileMenuOpen = ref(false);
 
       <button
         type="button"
-        class="grid size-11 place-items-center rounded-xl bg-surface text-ink transition-colors hover:bg-surface-strong sm:hidden"
+        class="grid size-11 place-items-center rounded-xl bg-surface text-ink transition-colors hover:bg-surface-strong md:hidden"
         :aria-expanded="mobileMenuOpen"
         aria-controls="mobile-navigation"
         :aria-label="mobileMenuOpen ? 'Close navigation' : 'Open navigation'"
@@ -51,7 +51,7 @@ const mobileMenuOpen = ref(false);
       </button>
     </div>
 
-    <nav v-if="mobileMenuOpen" id="mobile-navigation" class="border-t border-line bg-white px-4 py-3 sm:hidden" aria-label="Mobile navigation">
+    <nav v-if="mobileMenuOpen" id="mobile-navigation" class="border-t border-line bg-white px-4 py-3 md:hidden" aria-label="Mobile navigation">
       <RouterLink
         to="/conversations"
         class="flex min-h-12 items-center gap-3 rounded-xl px-4 text-sm font-semibold text-muted"

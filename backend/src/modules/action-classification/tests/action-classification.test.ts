@@ -6,6 +6,7 @@ import { classifyWithRules } from "../application/deterministic-rules.js";
 import { extractActionFeatures } from "../application/extract-features.js";
 import { ACTION_FEATURE_ORDER, approvedFeatureRow, validateFeatureVector } from "../application/feature-schema.js";
 import { trainingReadiness } from "../application/training-readiness.js";
+import { classifyConversation } from "../application/classify-conversation.js";
 import { TabPfnAdapter, TabPfnError } from "../adapters/tabpfn/tabpfn-adapter.js";
 import { ClassificationRepository } from "../adapters/persistence/classification-repository.js";
 
@@ -38,9 +39,94 @@ test("substantial inappropriate conduct receives supervisor review", () => asser
 test("missing metadata never becomes successful resolution", () => assert.equal(classifyWithRules(emptyFeatures()).action, "SUPERVISOR_REVIEW"));
 
 test("requires sufficient verified labels across at least two represented classes", () => {
-  const labels = Array.from({ length: 6 }, (_, index) => ({ _id: index, verified_action: index < 3 ? "NO_ACTION" as const : "CUSTOMER_CALLBACK" as const, feature_version: ACTION_FEATURE_VERSION }));
+  const labels = Array.from({ length: 6 }, (_, index) => ({ _id: index, verified_action: index < 3 ? "NO_ACTION" as const : "CUSTOMER_CALLBACK" as const, feature_version: ACTION_FEATURE_VERSION, features: { ...resolved() } }));
   assert.equal(trainingReadiness(labels, 3, 12).ready, false);
   assert.equal(trainingReadiness([...labels, ...labels.map((item, index) => ({ ...item, _id: index + 6 }))], 3, 12).ready, true);
+});
+
+test("training excludes invalid, outdated and duplicate database samples", () => {
+  const sample = { _id: "sample-1", dataset_group_id: "DEV", conversation_id: "sample", verified_action: "NO_ACTION" as const, feature_version: ACTION_FEATURE_VERSION, features: { ...resolved() } };
+  const readiness = trainingReadiness([
+    sample, { ...sample, _id: "duplicate" }, { ...sample, _id: "old", conversation_id: "old", feature_version: "obsolete" },
+    { ...sample, _id: "incomplete", conversation_id: "incomplete", features: { quality_score: 100 } },
+    { ...sample, _id: "unknown", conversation_id: "unknown", verified_action: "UNKNOWN" as any }
+  ], 1, 2);
+  assert.equal(readiness.ready, false); assert.equal(readiness.eligible_labels.length, 1);
+  assert.equal(readiness.rejected_total, 4); assert.equal(readiness.sample_source, "classification_labels");
+});
+
+test("changing persisted features invalidates the fitted training version", () => {
+  const labels = [
+    { _id: "1", verified_action: "NO_ACTION" as const, feature_version: ACTION_FEATURE_VERSION, features: { ...resolved() } },
+    { _id: "2", verified_action: "CUSTOMER_CALLBACK" as const, feature_version: ACTION_FEATURE_VERSION, features: { ...resolved(), followup_promised: true } }
+  ];
+  const first = trainingReadiness(labels, 1, 2);
+  labels[0]!.features.quality_score = 60;
+  assert.notEqual(trainingReadiness(labels, 1, 2).dataset_version, first.dataset_version);
+});
+
+test("database training query uses current verified labels and excludes the prediction target", async () => {
+  let query: any;
+  const repository = new ClassificationRepository({ collection: (name: string) => {
+    assert.equal(name, "classification_labels");
+    return { find: (filter: any) => { query = filter; return { toArray: async () => [] }; } };
+  } } as any);
+  await repository.verifiedLabels({ datasetGroupId: "DEV", conversationId: "target" });
+  assert.equal(query.verification_status, "VERIFIED"); assert.equal(query.feature_version, ACTION_FEATURE_VERSION);
+  assert.equal(query.label_policy_version, "action-label-policy.v1");
+  assert.deepEqual(query.$nor, [{ dataset_group_id: "DEV", conversation_id: "target" }]);
+});
+
+test("TabPFN fits only eligible database samples and records their provenance", async () => {
+  const samples = Array.from({ length: 12 }, (_, index) => ({ _id: index, label_id: `label-${index}`, conversation_id: `source-${index}`, dataset_group_id: "DEV", verified_action: index < 6 ? "NO_ACTION" as const : "CUSTOMER_CALLBACK" as const, feature_version: ACTION_FEATURE_VERSION, features: { ...resolved(), duration_seconds: index + 10 } }));
+  let completed: any; let fittedRows: any;
+  const repository = {
+    findByEvent: async () => completed ?? { result_id: "result", status: "queued" }, start: async () => ({ modifiedCount: 1 }),
+    inputs: async () => ({ metadata: { semantic: { resolution_and_follow_up: { status: "resolved" } } }, criteria: [] }),
+    proposeLabel: async () => {}, verifiedLabels: async (excluded: unknown) => { assert.deepEqual(excluded, { datasetGroupId: "DEV", conversationId: "target" }); return samples; },
+    readyModel: async () => null, latestModel: async () => null, saveModel: async () => {},
+    complete: async (_event: string, document: any) => { completed = document; }, fail: async () => assert.fail("classification should succeed")
+  };
+  const adapter = {
+    fit: async (rows: any) => { fittedRows = rows; return { fitted_train_set_id: "database-model", status: "completed" }; },
+    predict: async () => ({ action: "NO_ACTION", confidence: 0.9, probabilities: { NO_ACTION: 0.9, CUSTOMER_CALLBACK: 0.1 }, model_id: "database-model" })
+  };
+  const event = { event_id: "event", correlation_id: "result", event_type: "cqa.classification.requested", event_version: 1, occurred_at: new Date().toISOString(), dataset_group_id: "DEV", conversation_id: "target" } as const;
+  await classifyConversation(event, repository as any, adapter as any, { classification: { minPerClass: 3, minTotal: 12 }, tabpfn: tabConfig } as AppConfig);
+  assert.deepEqual(fittedRows, samples.map((sample) => ({ features: sample.features, action: sample.verified_action })));
+  assert.equal(completed.training_sample_source, "classification_labels"); assert.equal(completed.training_sample_count, 12);
+  assert.equal(completed.classification_source, "tabpfn");
+
+  completed = undefined; fittedRows = undefined;
+  repository.verifiedLabels = async () => [];
+  await classifyConversation(event, repository as any, adapter as any, { classification: { minPerClass: 3, minTotal: 12 }, tabpfn: tabConfig } as AppConfig);
+  assert.equal(fittedRows, undefined); assert.equal(completed.classification_source, "rules");
+  assert.equal(completed.training_sample_count, 0); assert.match(completed.tabpfn_unavailable_reason, /verified labels/);
+});
+
+test("missing persisted inputs fail instead of producing an empty fallback result", async () => {
+  let failure: string | null = null;
+  const repository = {
+    findByEvent: async () => ({ result_id: "result", status: "queued" }), start: async () => ({ modifiedCount: 1 }),
+    inputs: async () => ({ metadata: null, evaluation: null, criteria: [] }),
+    complete: async () => assert.fail("no result can be completed without inputs"), fail: async (_id: string, message: string) => { failure = message; }
+  };
+  const event = { event_id: "event", correlation_id: "result", event_type: "cqa.classification.requested", event_version: 1, occurred_at: new Date().toISOString(), dataset_group_id: "DEV", conversation_id: "target" } as const;
+  await assert.rejects(() => classifyConversation(event, repository as any, {} as any, {} as AppConfig), /requires persisted metadata/);
+  assert.match(failure!, /requires persisted metadata/);
+});
+
+test("compliance rules do not claim a model override when no model was used", async () => {
+  let completed: any;
+  const repository = {
+    findByEvent: async () => completed ?? { result_id: "result", status: "queued" }, start: async () => ({ modifiedCount: 1 }),
+    inputs: async () => ({ evaluation: { run_id: "eval", final_score: 0 }, criteria: [{ criterion_id: "freedom-criterion-08", processing_state: "completed", raw_value: true, is_na: false }] }),
+    proposeLabel: async () => {}, verifiedLabels: async () => [], complete: async (_id: string, document: any) => { completed = document; }, fail: async () => assert.fail("rule fallback should succeed")
+  };
+  const event = { event_id: "event", correlation_id: "result", event_type: "cqa.classification.requested", event_version: 1, occurred_at: new Date().toISOString(), dataset_group_id: "DEV", conversation_id: "target" } as const;
+  await classifyConversation(event, repository as any, {} as any, { classification: { minPerClass: 3, minTotal: 12 }, tabpfn: tabConfig } as AppConfig);
+  assert.equal(completed.final_action, "COMPLIANCE_REVIEW"); assert.equal(completed.override_reason, null);
+  assert.equal(completed.classification_source, "rules");
 });
 
 test("duplicate requests are idempotent while forced reclassification preserves history", async () => {

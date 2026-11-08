@@ -48,7 +48,7 @@ export async function processBatch(db: Db, repository: BatchRepository, producer
       continue;
     }
     const result = await startEvaluation(db, evaluations, item.conversation_id, batch.checklist_version_id, {
-      modelId: batch.model_id, promptVersion: batch.prompt_version, inputFingerprint: item.input_fingerprint, batchId
+      modelId: batch.model_id, promptVersion: batch.prompt_version, inputFingerprint: item.input_fingerprint, batchId, allowInactiveChecklist: true
     });
     await repository.collection().updateOne(
       { batch_id: batchId, "conversation_results.conversation_id": item.conversation_id, "conversation_results.status": "pending" },

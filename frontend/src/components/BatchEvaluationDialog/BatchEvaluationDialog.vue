@@ -12,11 +12,12 @@ const datasetId = ref(""); const checklistId = ref(""); const versionId = ref(""
 const options = useQuery({ queryKey: batchKeys.options, queryFn: ({ signal }) => listBatchOptions(signal), enabled: computed(() => props.open) });
 const checklists = useQuery({ queryKey: ["checklists"], queryFn: ({ signal }) => listChecklists(signal), enabled: computed(() => props.open) });
 watch(() => options.data.value, (value) => { if (!datasetId.value && value?.datasets[0]) datasetId.value = value.datasets[0].dataset_group_id; });
-watch(() => checklists.data.value, (value) => {
+const activeChecklists = computed(() => (checklists.data.value ?? []).filter(item => item.is_active !== false && item.active_version_id));
+watch(activeChecklists, (value) => {
   if (value?.length && !value.some((item) => item.id === checklistId.value)) checklistId.value = value[0]!.id;
   if (!value?.length) checklistId.value = "";
 });
-watch([checklistId, () => checklists.data.value], ([id, items]) => { versionId.value = items?.find((item) => item.id === id)?.active_version_id ?? ""; }, { immediate: true });
+watch([checklistId, activeChecklists], ([id, items]) => { versionId.value = items?.find((item) => item.id === id)?.active_version_id ?? ""; }, { immediate: true });
 const dataset = computed(() => options.data.value?.datasets.find((item) => item.dataset_group_id === datasetId.value));
 const selectedChecklist = computed(() => checklists.data.value?.find((item) => item.id === checklistId.value));
 const conversationCount = computed(() => mode.value === "smoke" ? Math.min(3, dataset.value?.conversation_count ?? 0) : dataset.value?.conversation_count ?? 0);
@@ -42,7 +43,7 @@ const mutation = useMutation({
         </label>
         <label class="text-sm font-semibold text-ink">Checklist
           <select v-model="checklistId" class="mt-2 w-full rounded-xl border border-line bg-white px-3 py-2.5 font-normal">
-            <option v-for="item in checklists.data.value" :key="item.id" :value="item.id">{{ item.name }}</option>
+            <option v-for="item in activeChecklists" :key="item.id" :value="item.id">{{ item.name }}</option>
           </select>
         </label>
         <p class="text-sm text-muted sm:col-span-2">The selected checklist’s current configuration will be used.</p>

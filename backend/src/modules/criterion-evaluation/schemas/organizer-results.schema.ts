@@ -4,7 +4,7 @@ const OrganizerCriterionSchema = Type.Object({
   criterion_id: Type.String({ minLength: 1 }),
   value: Type.Union([Type.Boolean(), Type.Number(), Type.Null()]),
   rationale: Type.String({ minLength: 1 }),
-  evidence_turns: Type.Array(Type.Integer({ minimum: 1 }), { minItems: 1 })
+  evidence_turns: Type.Array(Type.Integer({ minimum: 1 }))
 }, { additionalProperties: false });
 const SuccessSchema = Type.Object({
   conversation_id: Type.String({ minLength: 1 }),

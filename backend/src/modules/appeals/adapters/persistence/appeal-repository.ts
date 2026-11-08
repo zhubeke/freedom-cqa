@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Db } from "mongodb";
 import type { AppealDocument } from "../../application/appeal.types.js";
+import { decisionOutcome } from "../../application/review-decision.js";
 
 export class AppealRepository {
   constructor(readonly db: Db) {}
@@ -18,5 +19,12 @@ export class AppealRepository {
     return this.collection().insertOne(document).then(() => document);
   }
   find(appealId: string) { return this.collection().findOne({ appeal_id: appealId }); }
-  list(filter: Record<string, unknown>, limit = 100) { return this.collection().find(filter, { projection: { _id: 0 } }).sort({ created_at: 1 }).limit(limit).toArray(); }
+  async list(filter: Record<string, unknown>, limit = 100) {
+    return (await this.collection().find(filter, { projection: { _id: 0 } }).sort({ created_at: 1 }).limit(limit).toArray()).map(appeal => ({
+      ...appeal,
+      decision: appeal.decision && ["CONFIRMED", "OVERRIDDEN"].includes(appeal.status) ? {
+        ...appeal.decision, outcome: appeal.decision.outcome ?? decisionOutcome(appeal.original_evaluation, appeal.decision)
+      } : appeal.decision
+    }));
+  }
 }

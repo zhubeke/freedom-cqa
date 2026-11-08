@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "CQA home" [ref=e6] [cursor=pointer]:
+        - /url: /conversations
+        - generic [ref=e7]:
+          - generic [ref=e8]: CQA
+          - generic [ref=e9]: Conversation quality
+      - navigation "Main navigation" [ref=e10]:
+        - link "Conversations" [ref=e11] [cursor=pointer]:
+          - /url: /conversations
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+        - link "Appeals" [ref=e18] [cursor=pointer]:
+          - /url: /reviews
+        - link "Checklists" [ref=e23] [cursor=pointer]:
+          - /url: /checklists
+  - main [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - heading "Checklists" [level=1] [ref=e31]
+          - paragraph [ref=e32]: Manage quality evaluation configurations.
+        - button "Create checklist" [ref=e33] [cursor=pointer]
+      - generic [ref=e35]:
+        - searchbox "Search checklists by name or description" [ref=e37]
+        - generic [ref=e38]:
+          - generic [ref=e39]: 1 checklist
+          - button "Refresh checklists" [ref=e40] [cursor=pointer]
+      - paragraph [ref=e46]: Active checklists are available for new evaluations. Multiple checklists can be active.
+      - table [ref=e48]:
+        - rowgroup [ref=e49]:
+          - row [ref=e50]:
+            - columnheader "Name" [ref=e51]
+            - columnheader "Criteria" [ref=e52]
+            - columnheader "Weight" [ref=e53]
+            - columnheader "Modified" [ref=e54]
+            - columnheader "Status" [ref=e55]
+            - columnheader "Actions" [ref=e56]
+        - rowgroup [ref=e58]:
+          - row [ref=e59]:
+            - rowheader [ref=e60]:
+              - link "Freedom Broker Chat Quality Checklist" [ref=e61] [cursor=pointer]:
+                - /url: /checklists/freedom-default-checklist/edit
+              - paragraph [ref=e62]: Original eight-criterion quality checklist for Freedom Broker customer conversations.
+            - cell "8 enabled criteria" [ref=e63]:
+              - text: "8"
+              - generic [ref=e64]: enabled criteria
+            - cell "100 / 100" [ref=e65]
+            - cell [ref=e66]:
+              - time [ref=e67]: Nov 8, 2026
+            - cell "Active" [ref=e68]
+            - cell [ref=e71]:
+              - button "Actions for Freedom Broker Chat Quality Checklist" [ref=e72] [cursor=pointer]

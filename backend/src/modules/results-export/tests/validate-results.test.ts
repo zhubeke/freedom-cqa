@@ -52,3 +52,13 @@ test("enforces the exact 65-record DEV submission size", () => {
   document.results.pop();
   assert.equal(validateOrganizerResults(document, devContext).valid, false);
 });
+
+test("allows empty evidence and individual DEV exports without relaxing submission-size validation", () => {
+  const copy = structuredClone(valid);
+  copy.results = [copy.results[0]!];
+  if (copy.results[0]!.status !== "ok") throw new Error("test fixture is invalid");
+  copy.results[0]!.criteria[0]!.evidence_turns = [];
+  const selectedContext = { ...context, scope: "selection" as const, datasetGroupId: "DEV", expectedConversationIds: ["one"] };
+  assert.equal(validateOrganizerResults(copy, selectedContext).valid, true);
+  assert.equal(validateOrganizerResults(copy, { ...selectedContext, scope: "submission" }).valid, false);
+});

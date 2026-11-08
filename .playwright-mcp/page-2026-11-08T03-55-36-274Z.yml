@@ -1,0 +1,82 @@
+- main [ref=e2]:
+  - region [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - heading "Quality evaluation" [level=2] [ref=e6]
+        - paragraph [ref=e7]: Select a criterion to see the explanation and evidence.
+      - button "Evaluate" [ref=e8] [cursor=pointer]
+    - generic [ref=e11]:
+      - generic [ref=e12]: Retry available · 8/8 criteria
+      - generic [ref=e14]:
+        - generic [ref=e18]:
+          - strong [ref=e19]: Retry available
+          - paragraph [ref=e20]: Invalid model response. Completed criteria are preserved.
+        - button "Retry failed criteria" [ref=e21] [cursor=pointer]
+      - region [ref=e25]:
+        - generic [ref=e26]:
+          - heading "Beginning and Understanding the Request" [level=3] [ref=e27]
+          - generic [ref=e28]: 2 criteria
+        - generic [ref=e29]:
+          - group [ref=e30]:
+            - generic "Needs attention. Establishing Contact No 0 / 10" [ref=e31] [cursor=pointer]:
+              - generic [ref=e32]: Needs attention.
+              - generic [ref=e36]: Establishing Contact
+              - generic [ref=e37]: "No"
+              - generic "Backend earned points / available weight" [ref=e38]: 0 / 10
+          - group [ref=e41]:
+            - generic "Needs attention. Identifying Customer Needs No 0 / 15" [ref=e42] [cursor=pointer]:
+              - generic [ref=e43]: Needs attention.
+              - generic [ref=e47]: Identifying Customer Needs
+              - generic [ref=e48]: "No"
+              - generic "Backend earned points / available weight" [ref=e49]: 0 / 15
+      - region [ref=e52]:
+        - generic [ref=e53]:
+          - heading "Security and Resolution" [level=3] [ref=e54]
+          - generic [ref=e55]: 2 criteria
+        - generic [ref=e56]:
+          - group [ref=e57]:
+            - generic "Full score. Identity Verification Yes 20 / 20" [ref=e58] [cursor=pointer]:
+              - generic [ref=e59]: Full score.
+              - generic [ref=e63]: Identity Verification
+              - generic [ref=e64]: "Yes"
+              - generic "Backend earned points / available weight" [ref=e65]: 20 / 20
+          - group [ref=e68]:
+            - generic "Full score. Correct and Complete Consultation 20 20 / 20" [ref=e69] [cursor=pointer]:
+              - generic [ref=e70]: Full score.
+              - generic [ref=e74]: Correct and Complete Consultation
+              - generic [ref=e75]: "20"
+              - generic "Backend earned points / available weight" [ref=e76]: 20 / 20
+      - region [ref=e79]:
+        - generic [ref=e80]:
+          - heading "Dialogue Management and Closing" [level=3] [ref=e81]
+          - generic [ref=e82]: 3 criteria
+        - generic [ref=e83]:
+          - group [ref=e84]:
+            - generic "Needs attention. Empathy and Customer Orientation No 0 / 15" [ref=e85] [cursor=pointer]:
+              - generic [ref=e86]: Needs attention.
+              - generic [ref=e90]: Empathy and Customer Orientation
+              - generic [ref=e91]: "No"
+              - generic "Backend earned points / available weight" [ref=e92]: 0 / 15
+          - group [ref=e95]:
+            - generic "Full score. Dialogue Management, Speed and Clarity 10 15 / 15" [ref=e96] [cursor=pointer]:
+              - generic [ref=e97]: Full score.
+              - generic [ref=e101]: Dialogue Management, Speed and Clarity
+              - generic [ref=e102]: "10"
+              - generic "Backend earned points / available weight" [ref=e103]: 15 / 15
+          - group [ref=e106]:
+            - generic "Full score. Conversation Closing Yes 5 / 5" [ref=e107] [cursor=pointer]:
+              - generic [ref=e108]: Full score.
+              - generic [ref=e112]: Conversation Closing
+              - generic [ref=e113]: "Yes"
+              - generic "Backend earned points / available weight" [ref=e114]: 5 / 5
+      - region [ref=e117]:
+        - generic [ref=e118]:
+          - heading "Severe Violations" [level=3] [ref=e119]
+          - generic [ref=e120]: 1 criterion
+        - group [ref=e122]:
+          - generic "Evaluation failed. Severe Violations Failed" [ref=e123] [cursor=pointer]:
+            - generic [ref=e124]: Evaluation failed.
+            - generic [ref=e128]: Severe Violations
+            - generic [ref=e129]: Failed
+      - group [ref=e132]:
+        - generic "Evaluation details" [ref=e133] [cursor=pointer]

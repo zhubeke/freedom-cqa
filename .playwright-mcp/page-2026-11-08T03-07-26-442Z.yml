@@ -1,0 +1,213 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - link "CQA home" [ref=f3e6] [cursor=pointer]:
+          - /url: /conversations
+          - generic [ref=f3e7]:
+            - generic [ref=f3e8]: CQA
+            - generic [ref=f3e9]: Conversation quality
+        - navigation "Main navigation" [ref=f3e10]:
+          - link "Conversations" [ref=f3e11] [cursor=pointer]:
+            - /url: /conversations
+          - link "Dashboard" [ref=f3e15] [cursor=pointer]:
+            - /url: /dashboard
+          - link "Appeals" [ref=f3e18] [cursor=pointer]:
+            - /url: /reviews
+          - link "Checklists" [ref=f3e23] [cursor=pointer]:
+            - /url: /checklists
+    - main [ref=f3e27]:
+      - generic [ref=f3e82]:
+        - generic [ref=f3e83]:
+          - link "Back to checklists" [ref=f3e84] [cursor=pointer]:
+            - /url: /checklists
+          - generic [ref=f3e87]:
+            - heading "Edit checklist" [level=1] [ref=f3e88]
+            - generic [ref=f3e89]: Version 1
+          - paragraph [ref=f3e90]: Configure future evaluations. Saving creates a new version; historical reports keep their original snapshot.
+        - generic [ref=f3e91]:
+          - group [ref=f3e92]:
+            - generic "Scoring configuration 100 / 100 points" [ref=f3e93] [cursor=pointer]:
+              - generic [ref=f3e94]:
+                - generic [ref=f3e95]: Scoring configuration
+                - strong [ref=f3e97]: 100 / 100 points
+            - generic [ref=f3e103]:
+              - generic [ref=f3e104]:
+                - generic [ref=f3e105]:
+                  - term [ref=f3e106]: Beginning and Understanding the Request
+                  - definition [ref=f3e107]: "25"
+                - generic [ref=f3e108]:
+                  - term [ref=f3e109]: Security and Resolution
+                  - definition [ref=f3e110]: "40"
+                - generic [ref=f3e111]:
+                  - term [ref=f3e112]: Dialogue Management and Closing
+                  - definition [ref=f3e113]: "35"
+                - generic [ref=f3e114]:
+                  - term [ref=f3e115]: Severe Violations
+                  - definition [ref=f3e116]: "0"
+              - paragraph [ref=f3e117]: 8 enabled · 4 allow N/A
+              - paragraph [ref=f3e118]: Configuration ready to save
+          - generic [ref=f3e119]:
+            - generic [ref=f3e120]:
+              - generic [ref=f3e121]:
+                - text: Checklist name
+                - textbox "Checklist name" [ref=f3e122]: Freedom Broker Chat Quality Checklist (copy)
+              - generic [ref=f3e123]:
+                - text: Description
+                - textbox "Description" [ref=f3e124]: Original eight-criterion quality checklist for Freedom Broker customer conversations.
+            - tablist "Editor view" [ref=f3e125]:
+              - tab "Edit configuration" [selected] [ref=f3e126] [cursor=pointer]
+              - tab "Evaluator preview" [ref=f3e130] [cursor=pointer]
+            - generic [ref=f3e134]:
+              - generic [ref=f3e135]:
+                - heading "Sections & criteria" [level=2] [ref=f3e136]
+                - generic [ref=f3e137]:
+                  - button "Expand all" [ref=f3e138] [cursor=pointer]
+                  - button "Collapse all" [ref=f3e139] [cursor=pointer]
+              - paragraph [ref=f3e140]
+              - generic [ref=f3e141]:
+                - generic [ref=f3e142]:
+                  - generic [ref=f3e143] [cursor=pointer]:
+                    - button "Reorder section Beginning and Understanding the Request. Alt plus Up or Down changes its position" [ref=f3e144]
+                    - textbox "Section 1 name" [ref=f3e152]:
+                      - /placeholder: Section name
+                      - text: Beginning and Understanding the Request
+                    - generic [ref=f3e153]: 2 criteria·25 pts
+                    - button "Actions for section Beginning and Understanding the Request" [ref=f3e155]
+                    - button "Collapse section Beginning and Understanding the Request" [expanded] [ref=f3e160]
+                  - generic [ref=f3e163]:
+                    - generic [ref=f3e165]:
+                      - article [ref=f3e166]:
+                        - generic [ref=f3e167] [cursor=pointer]:
+                          - button "Reorder criterion 01. Alt plus Up or Down moves within this section" [ref=f3e168]
+                          - generic [ref=f3e176]: "01"
+                          - textbox "Criterion 01 name" [ref=f3e177]:
+                            - /placeholder: Criterion name
+                            - text: Establishing Contact
+                          - generic [ref=f3e178]: Yes / No·10 pts
+                          - generic [ref=f3e179]: Enabled
+                          - button "Actions for criterion 01" [ref=f3e181]
+                          - button "Expand criterion 01" [ref=f3e186]
+                      - article [ref=f3e189]:
+                        - generic [ref=f3e190] [cursor=pointer]:
+                          - button "Reorder criterion 02. Alt plus Up or Down moves within this section" [ref=f3e191]
+                          - generic [ref=f3e199]: "02"
+                          - textbox "Criterion 02 name" [ref=f3e200]:
+                            - /placeholder: Criterion name
+                            - text: Identifying Customer Needs
+                          - generic [ref=f3e201]: Yes / No·15 pts
+                          - generic [ref=f3e202]: Enabled
+                          - button "Actions for criterion 02" [ref=f3e204]
+                          - button "Expand criterion 02" [ref=f3e209]
+                    - button "Add criterion" [ref=f3e212] [cursor=pointer]
+                - generic [ref=f3e214]:
+                  - generic [ref=f3e215] [cursor=pointer]:
+                    - button "Reorder section Security and Resolution. Alt plus Up or Down changes its position" [ref=f3e216]
+                    - textbox "Section 2 name" [ref=f3e224]:
+                      - /placeholder: Section name
+                      - text: Security and Resolution
+                    - generic [ref=f3e225]: 2 criteria·40 pts
+                    - button "Actions for section Security and Resolution" [ref=f3e227]
+                    - button "Collapse section Security and Resolution" [expanded] [ref=f3e232]
+                  - generic [ref=f3e235]:
+                    - generic [ref=f3e237]:
+                      - article [ref=f3e238]:
+                        - generic [ref=f3e239] [cursor=pointer]:
+                          - button "Reorder criterion 03. Alt plus Up or Down moves within this section" [ref=f3e240]
+                          - generic [ref=f3e248]: "03"
+                          - textbox "Criterion 03 name" [ref=f3e249]:
+                            - /placeholder: Criterion name
+                            - text: Identity Verification
+                          - generic [ref=f3e250]: Yes / No·20 pts
+                          - generic [ref=f3e251]: Enabled
+                          - button "Actions for criterion 03" [ref=f3e253]
+                          - button "Expand criterion 03" [ref=f3e258]
+                      - article [ref=f3e261]:
+                        - generic [ref=f3e262] [cursor=pointer]:
+                          - button "Reorder criterion 04. Alt plus Up or Down moves within this section" [ref=f3e263]
+                          - generic [ref=f3e271]: "04"
+                          - textbox "Criterion 04 name" [ref=f3e272]:
+                            - /placeholder: Criterion name
+                            - text: Correct and Complete Consultation
+                          - generic [ref=f3e273]: 0–20·20 pts
+                          - generic [ref=f3e274]: Enabled
+                          - button "Actions for criterion 04" [ref=f3e276]
+                          - button "Expand criterion 04" [ref=f3e281]
+                    - button "Add criterion" [ref=f3e284] [cursor=pointer]
+                - generic [ref=f3e286]:
+                  - generic [ref=f3e287] [cursor=pointer]:
+                    - button "Reorder section Dialogue Management and Closing. Alt plus Up or Down changes its position" [ref=f3e288]
+                    - textbox "Section 3 name" [ref=f3e296]:
+                      - /placeholder: Section name
+                      - text: Dialogue Management and Closing
+                    - generic [ref=f3e297]: 3 criteria·35 pts
+                    - button "Actions for section Dialogue Management and Closing" [ref=f3e299]
+                    - button "Collapse section Dialogue Management and Closing" [expanded] [ref=f3e304]
+                  - generic [ref=f3e307]:
+                    - generic [ref=f3e309]:
+                      - article [ref=f3e310]:
+                        - generic [ref=f3e311] [cursor=pointer]:
+                          - button "Reorder criterion 05. Alt plus Up or Down moves within this section" [ref=f3e312]
+                          - generic [ref=f3e320]: "05"
+                          - textbox "Criterion 05 name" [ref=f3e321]:
+                            - /placeholder: Criterion name
+                            - text: Empathy and Customer Orientation
+                          - generic [ref=f3e322]: Yes / No·15 pts
+                          - generic [ref=f3e323]: Enabled
+                          - button "Actions for criterion 05" [ref=f3e325]
+                          - button "Expand criterion 05" [ref=f3e330]
+                      - article [ref=f3e333]:
+                        - generic [ref=f3e334] [cursor=pointer]:
+                          - button "Reorder criterion 06. Alt plus Up or Down moves within this section" [ref=f3e335]
+                          - generic [ref=f3e343]: "06"
+                          - textbox "Criterion 06 name" [ref=f3e344]:
+                            - /placeholder: Criterion name
+                            - text: Dialogue Management, Speed and Clarity
+                          - generic [ref=f3e345]: 0–10·15 pts
+                          - generic [ref=f3e346]: Enabled
+                          - button "Actions for criterion 06" [ref=f3e348]
+                          - button "Expand criterion 06" [ref=f3e353]
+                      - article [ref=f3e356]:
+                        - generic [ref=f3e357] [cursor=pointer]:
+                          - button "Reorder criterion 07. Alt plus Up or Down moves within this section" [ref=f3e358]
+                          - generic [ref=f3e366]: "07"
+                          - textbox "Criterion 07 name" [ref=f3e367]:
+                            - /placeholder: Criterion name
+                            - text: Conversation Closing
+                          - generic [ref=f3e368]: Yes / No·5 pts
+                          - generic [ref=f3e369]: Enabled
+                          - button "Actions for criterion 07" [ref=f3e371]
+                          - button "Expand criterion 07" [ref=f3e376]
+                    - button "Add criterion" [ref=f3e379] [cursor=pointer]
+                - generic [ref=f3e381]:
+                  - generic [ref=f3e382] [cursor=pointer]:
+                    - button "Reorder section Severe Violations. Alt plus Up or Down changes its position" [ref=f3e383]
+                    - textbox "Section 4 name" [ref=f3e391]:
+                      - /placeholder: Section name
+                      - text: Severe Violations
+                    - generic [ref=f3e392]: 1 criteria·0 pts
+                    - button "Actions for section Severe Violations" [ref=f3e394]
+                    - button "Collapse section Severe Violations" [expanded] [ref=f3e399]
+                  - generic [ref=f3e402]:
+                    - article [ref=f3e405]:
+                      - generic [ref=f3e406] [cursor=pointer]:
+                        - button "Reorder criterion 08. Alt plus Up or Down moves within this section" [ref=f3e407]
+                        - generic [ref=f3e415]: "08"
+                        - textbox "Criterion 08 name" [ref=f3e416]:
+                          - /placeholder: Criterion name
+                          - text: Severe Violations
+                        - generic [ref=f3e417]: Violation flag·0 pts
+                        - generic [ref=f3e418]: Enabled
+                        - button "Actions for criterion 08" [ref=f3e420]
+                        - button "Expand criterion 08" [ref=f3e425]
+                    - button "Add criterion" [ref=f3e428] [cursor=pointer]
+              - button "Add section" [ref=f3e430] [cursor=pointer]
+              - paragraph [ref=f3e432]: Use drag handles to arrange sections and criteria. Use Alt + Up/Down on a handle, or its actions menu, to reorder with a keyboard.
+        - generic "Save checklist" [ref=f3e433]:
+          - generic [ref=f3e434]:
+            - generic [ref=f3e435]: All changes saved
+            - generic [ref=f3e436]: 100 / 100 points
+          - generic [ref=f3e437]:
+            - button "Cancel" [ref=f3e438] [cursor=pointer]
+            - button "Save changes" [disabled] [ref=f3e439]
+  - button "Independent checklist copy created · Inactive" [ref=f3e444] [cursor=pointer]

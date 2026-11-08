@@ -1,4 +1,4 @@
-export const METADATA_EXTRACTOR_VERSION = "deterministic-v1+semantic-v2";
+export const METADATA_EXTRACTOR_VERSION = "deterministic-v1+semantic-v3";
 
 export type MetadataStatus = "pending" | "processing" | "completed" | "partial" | "failed" | "not_applicable";
 

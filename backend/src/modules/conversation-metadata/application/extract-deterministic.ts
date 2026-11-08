@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import { mean, median, max, min } from "simple-statistics";
 import type { DeterministicMetadata } from "../schemas/metadata.schemas.js";
 import type { NormalizedConversation, NormalizedMessage, NullableMetric } from "./metadata.types.js";
+import { extractOperatorNames } from "./extract-operator-names.js";
 
 const HANDOFF_PATTERNS = [/эскалац/i, /переведен.*(оператор|представител)/i, /transferred to an agent/i, /agent.*join/i, /оператор.*подключ/i];
 const LONG_WAIT_SECONDS = 60;
@@ -70,7 +71,8 @@ export function extractDeterministicMetadata(conversation: NormalizedConversatio
       total_message_count: conversation.transcript.length,
       first_timestamp: conversation.transcript[0]?.timestamp ?? null,
       last_timestamp: conversation.transcript.at(-1)?.timestamp ?? null,
-      timestamp_quality: timestampQuality
+      timestamp_quality: timestampQuality,
+      operator_names: extractOperatorNames(conversation.transcript)
     },
     messages_and_turns: {
       client_message_count: counts.client, operator_message_count: counts.operator,

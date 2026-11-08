@@ -42,6 +42,12 @@ export function normalizeModelVocabulary(value: unknown): unknown {
     }
   }
   const intent = root.customer_intent as Record<string, unknown> | undefined;
+  const primaryIntent = intent?.primary_intent as Record<string, unknown> | undefined;
+  if (primaryIntent && (typeof primaryIntent.label !== "string" || primaryIntent.label.trim().length === 0)) {
+    const fallback = [intent?.topic_category, intent?.requested_outcome]
+      .find((item): item is string => typeof item === "string" && item.trim().length > 0);
+    if (fallback) primaryIntent.label = fallback.trim();
+  }
   if (Array.isArray(intent?.unresolved_questions)) {
     intent.unresolved_questions = intent.unresolved_questions.map((item) => typeof item === "string"
       ? { question: item, confidence: 0, evidence_message_ids: [] }

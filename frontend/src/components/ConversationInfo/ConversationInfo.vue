@@ -13,6 +13,7 @@ function durationLabel(durationMs: number | null): string {
 }
 
 const rows = computed(() => [
+  ["Operator name(s)", props.conversation.operator_names?.length ? props.conversation.operator_names.map((item) => item.name).join(", ") : "Not identified"],
   ["Dataset group", props.conversation.dataset_group_id],
   ["Channel", props.conversation.normalized_channel === "call" ? "Voice Call" : "Chat"],
   ["Language", props.conversation.original_language],

@@ -14,11 +14,12 @@ export interface AppConfig {
   classification: { minPerClass: number; minTotal: number };
   tabpfn: { enabled: boolean; apiKey: string; baseUrl: string; modelId: string; timeoutMs: number; maxRetries: number };
   llm: {
-    provider: "workers_ai" | "custom_worker";
+    provider: "workers_ai" | "custom_worker" | "deepseek";
     endpoint: string | null;
     accountId: string;
     apiToken: string;
     model: string;
+    cloudflareModel?: string;
     timeoutMs: number;
     maxConcurrency: number;
     requestsPerMinute: number;
@@ -29,7 +30,12 @@ export interface AppConfig {
     credentialPoolEnabled?: boolean;
     quotaRecheckMs?: number;
     profiles?: CloudflareProfileConfig[];
+    deepseek?: DeepSeekConfig;
   };
+}
+
+export interface DeepSeekConfig {
+  enabled: boolean; apiKey: string; model: string; timeoutMs: number; maxConcurrency: number; requestsPerMinute: number;
 }
 
 export interface CloudflareProfileConfig {
@@ -57,8 +63,9 @@ export function loadConfig(): AppConfig {
   const brokers = required("REDPANDA_BROKERS").split(",").map((item) => item.trim()).filter(Boolean);
   if (brokers.length === 0) throw new Error("REDPANDA_BROKERS must contain at least one broker");
 
-  const provider = (process.env.CQA_LLM_PROVIDER?.trim() || (process.env.CQA_LLM_ENDPOINT?.trim() ? "custom_worker" : "workers_ai")) as "workers_ai" | "custom_worker";
-  if (provider !== "workers_ai" && provider !== "custom_worker") throw new Error("CQA_LLM_PROVIDER must be workers_ai or custom_worker");
+  const provider = (process.env.CQA_LLM_PROVIDER?.trim() || (process.env.CQA_LLM_ENDPOINT?.trim() ? "custom_worker" : "workers_ai")) as AppConfig["llm"]["provider"];
+  if (!["workers_ai", "custom_worker", "deepseek"].includes(provider)) throw new Error("CQA_LLM_PROVIDER must be workers_ai, custom_worker, or deepseek");
+  if (provider === "deepseek" && !process.env.DEEPSEEK_API_KEY?.trim()) throw new Error("DEEPSEEK_API_KEY is required when DeepSeek is primary");
   const endpoint = process.env.CQA_LLM_ENDPOINT?.trim() || null;
   if (provider === "custom_worker" && !endpoint) throw new Error("CQA_LLM_ENDPOINT is required in custom_worker mode");
   const integerInRange = (name: string, fallback: string, minimum: number, maximum = Number.MAX_SAFE_INTEGER) => {
@@ -69,7 +76,8 @@ export function loadConfig(): AppConfig {
   const boolean = (name: string, fallback = false) => ["1", "true", "yes", "on"].includes((process.env[name] ?? String(fallback)).trim().toLowerCase());
   const legacyAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "not_configured";
   const legacyApiToken = process.env.CLOUDFLARE_API_TOKEN?.trim() || "not_configured";
-  const defaultModel = process.env.CLOUDFLARE_MODEL?.trim() || "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+  const defaultModel = process.env.CLOUDFLARE_MODEL?.trim() || "@cf/meta/llama-3.1-8b-instruct-fp8-fast";
+  const deepseekModel = process.env.DEEPSEEK_MODEL?.trim() || "deepseek-flash";
   const poolEnabled = boolean("CQA_CF_CREDENTIAL_POOL_ENABLED", true);
   const sharedRpm = integerInRange("CQA_CF_REQUESTS_PER_MINUTE_PER_ACCOUNT", process.env.CQA_LLM_REQUESTS_PER_MINUTE ?? "20", 1, 10_000);
   const sharedConcurrency = integerInRange("CQA_CF_MAX_CONCURRENCY_PER_ACCOUNT", process.env.CQA_LLM_MAX_CONCURRENCY ?? "1", 1, 32);
@@ -107,7 +115,7 @@ export function loadConfig(): AppConfig {
       maxConversationConcurrency: integerInRange("CQA_BATCH_MAX_CONCURRENCY", "2", 1, 10)
     },
     sentiment: {
-      batchSize: integerInRange("CQA_SENTIMENT_BATCH_SIZE", "20", 15, 25)
+      batchSize: integerInRange("CQA_SENTIMENT_BATCH_SIZE", "4", 1, 25)
     },
     classification: {
       minPerClass: integerInRange("CQA_CLASSIFICATION_MIN_PER_CLASS", "3", 1, 1000),
@@ -125,7 +133,8 @@ export function loadConfig(): AppConfig {
       endpoint,
       accountId: legacyAccountId,
       apiToken: legacyApiToken,
-      model: defaultModel,
+      model: provider === "deepseek" ? deepseekModel : defaultModel,
+      cloudflareModel: defaultModel,
       timeoutMs: integerInRange("CQA_LLM_TIMEOUT_MS", "60000", 1),
       maxConcurrency: integerInRange("CQA_LLM_MAX_CONCURRENCY", "1", 1, 32),
       requestsPerMinute: integerInRange("CQA_LLM_REQUESTS_PER_MINUTE", "20", 1, 10_000),
@@ -135,7 +144,15 @@ export function loadConfig(): AppConfig {
       minRequestIntervalMs: integerInRange("CQA_LLM_MIN_REQUEST_INTERVAL_MS", "0", 0, 60_000),
       credentialPoolEnabled: poolEnabled,
       quotaRecheckMs: integerInRange("CQA_CF_QUOTA_RECHECK_MS", "21600000", 60_000, 86_400_000),
-      profiles
+      profiles,
+      deepseek: {
+        enabled: provider === "deepseek" || boolean("CQA_DEEPSEEK_FALLBACK_ENABLED", Boolean(process.env.DEEPSEEK_API_KEY?.trim())),
+        apiKey: process.env.DEEPSEEK_API_KEY?.trim() ?? "",
+        model: deepseekModel,
+        timeoutMs: integerInRange("CQA_DEEPSEEK_TIMEOUT_MS", "60000", 1000, 600_000),
+        maxConcurrency: integerInRange("CQA_DEEPSEEK_MAX_CONCURRENCY", "1", 1, 32),
+        requestsPerMinute: integerInRange("CQA_DEEPSEEK_REQUESTS_PER_MINUTE", "20", 1, 10_000)
+      }
     }
   };
 }

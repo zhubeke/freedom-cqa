@@ -88,6 +88,7 @@ export const DeterministicMetadataSchema = Type.Object({
     language: Type.String(), channel: Type.String(), duration_seconds: NullableMetricSchema,
     total_message_count: Type.Integer(), first_timestamp: Type.Union([Type.String(), Type.Null()]),
     last_timestamp: Type.Union([Type.String(), Type.Null()]),
+    operator_names: Type.Array(Type.Object({ name: Type.String(), evidence_message_id: Type.Union([Type.String(), Type.Null()]), source: Type.Union([Type.Literal("structured"), Type.Literal("transcript")]) }, { additionalProperties: false })),
     timestamp_quality: Type.Union([Type.Literal("valid"), Type.Literal("partial"), Type.Literal("invalid"), Type.Literal("insufficient")])
   }, { additionalProperties: false }),
   messages_and_turns: Type.Object({

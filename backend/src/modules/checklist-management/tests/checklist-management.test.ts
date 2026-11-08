@@ -5,6 +5,8 @@ import { activateChecklistVersion } from "../application/activate-checklist-vers
 import { createChecklistVersion } from "../application/create-checklist-version.js";
 import { updateChecklist } from "../application/update-checklist.js";
 import { deleteChecklist } from "../application/delete-checklist.js";
+import { duplicateChecklist } from "../application/duplicate-checklist.js";
+import { setChecklistActive } from "../application/set-checklist-active.js";
 import { ChecklistError, type ChecklistConfiguration, type ChecklistRecord, type ChecklistRepository, type ChecklistSummary, type ChecklistVersionRecord } from "../domain/checklist.types.js";
 import { validateConfiguration } from "../domain/checklist.validation.js";
 import { freedomDefaultConfiguration } from "../seed/freedom-default-checklist.js";
@@ -14,7 +16,7 @@ class MemoryChecklistRepository implements ChecklistRepository {
   readonly checklists = new Map<string, ChecklistRecord>();
   readonly versions = new Map<string, ChecklistVersionRecord>();
   async ensureIndexes() {}
-  async list(): Promise<ChecklistSummary[]> { return [...this.checklists.values()].map((item) => { const version = item.active_version_id ? this.versions.get(item.active_version_id) : undefined; return { ...structuredClone(item), active_version_number: version?.version_number ?? null, criterion_count: version?.criteria.length ?? 0, total_scoring_weight: version?.total_scoring_weight ?? 0 }; }); }
+  async list(): Promise<ChecklistSummary[]> { return [...this.checklists.values()].map((item) => { const version = item.active_version_id ? this.versions.get(item.active_version_id) : undefined; return { ...structuredClone(item), active_version_number: version?.version_number ?? null, criterion_count: version?.criteria.length ?? 0, enabled_criterion_count: version?.criteria.filter(c => c.enabled).length ?? 0, can_delete: item.id !== "freedom-default-checklist", can_deactivate: item.id !== "freedom-default-checklist", total_scoring_weight: version?.total_scoring_weight ?? 0 }; }); }
   async findChecklist(id: string) { return structuredClone(this.checklists.get(id) ?? null); }
   async findVersion(checklistId: string, versionId: string) { const item = this.versions.get(versionId); return item?.checklist_id === checklistId ? structuredClone(item) : null; }
   async listVersions(checklistId: string) { return [...this.versions.values()].filter((item) => item.checklist_id === checklistId).sort((a, b) => b.version_number - a.version_number).map((item) => structuredClone(item)); }
@@ -43,6 +45,7 @@ class MemoryChecklistRepository implements ChecklistRepository {
     return { checklist: updated, version };
   }
   async deleteChecklist(id: string) { return this.checklists.delete(id); }
+  async setActive(id: string, isActive: boolean) { const item = this.checklists.get(id); if (!item) throw new ChecklistError("Checklist not found", 404); const updated = { ...item, is_active: isActive }; this.checklists.set(id, updated); return structuredClone(updated); }
 }
 
 const seed = async () => { const repository = new MemoryChecklistRepository(); await seedFreedomChecklist(repository); const checklist = (await repository.list())[0]!; const version = (await repository.listVersions(checklist.id))[0]!; return { repository, checklist, version }; };
@@ -100,8 +103,50 @@ test("direct editing activates a hidden snapshot and preserves the previous conf
 });
 
 test("deleting a checklist preserves its historical snapshots", async () => {
+  const { repository, checklist } = await seed();
+  const { checklist: copy, version } = await duplicateChecklist(repository, checklist.id);
+  await deleteChecklist(repository, copy.id);
+  assert.equal(await repository.findChecklist(copy.id), null);
+  assert.equal((await repository.findVersion(copy.id, version.id))?.id, version.id);
+});
+
+test("duplicate has independent identities and starts inactive without changing the original", async () => {
   const { repository, checklist, version } = await seed();
-  await deleteChecklist(repository, checklist.id);
-  assert.equal(await repository.findChecklist(checklist.id), null);
-  assert.equal((await repository.findVersion(checklist.id, version.id))?.id, version.id);
+  const result = await duplicateChecklist(repository, checklist.id);
+  assert.notEqual(result.checklist.id, checklist.id); assert.notEqual(result.version.id, version.id);
+  assert.equal(result.checklist.is_active, false); assert.equal(result.version.version_number, 1);
+  assert.equal(result.version.created_from_version_id, null); assert.equal(result.version.total_scoring_weight, 100);
+  assert.deepEqual(result.version.criteria.map(c => c.numeric_scale), version.criteria.map(c => c.numeric_scale));
+  assert.ok(result.version.criteria.every(c => !version.criteria.some(old => old.id === c.id)));
+  assert.ok(result.version.sections.every(s => !version.sections.some(old => old.id === s.id)));
+  assert.ok(result.version.criteria.every(c => result.version.sections.some(s => s.id === c.section_id)));
+  assert.deepEqual(await repository.findVersion(checklist.id, version.id), version);
+  const second = await duplicateChecklist(repository, checklist.id); assert.notEqual(second.checklist.name, result.checklist.name);
+});
+
+test("availability preserves selected versions and permits multiple active checklists", async () => {
+  const { repository, checklist } = await seed();
+  const { checklist: copy } = await duplicateChecklist(repository, checklist.id);
+  const active = await setChecklistActive(repository, copy.id, true);
+  assert.equal(active.active_version_id, copy.active_version_id); assert.equal(active.is_active, true);
+  await assert.rejects(() => deleteChecklist(repository, copy.id), /Deactivate/);
+  const inactive = await setChecklistActive(repository, copy.id, false);
+  assert.equal(inactive.active_version_id, active.active_version_id);
+  assert.ok((await repository.findChecklist(checklist.id))?.is_active !== false);
+});
+
+test("the original checklist cannot be deleted or disabled", async () => {
+  const { repository, checklist } = await seed();
+  await assert.rejects(() => deleteChecklist(repository, checklist.id), /original checklist/);
+  await assert.rejects(() => setChecklistActive(repository, checklist.id, false), /original checklist/);
+  assert.ok(await repository.findChecklist(checklist.id));
+});
+
+test("numeric maximum need not equal weight and disabled criteria do not contribute", () => {
+  const config = structuredClone(freedomDefaultConfiguration);
+  const dialogue = config.criteria.find(c => c.code === "06")!;
+  assert.equal(dialogue.weight, 15); assert.equal(Math.max(...dialogue.numeric_scale.map(s => s.value)), 10);
+  assert.equal(validateConfiguration(config), 100);
+  config.criteria[0]!.enabled = false; assert.throws(() => validateConfiguration(config), /received 90/);
+  config.criteria[1]!.weight += 10; assert.equal(validateConfiguration(config), 100);
 });
